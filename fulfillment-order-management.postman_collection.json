@@ -1,0 +1,347 @@
+{
+	"info": {
+		"_postman_id": "9d4a0f80-8f6e-4b8e-9c8d-0a1b2c3d4e5f",
+		"name": "Fulfillment Order Management API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"description": "API for managing the lifecycle of fulfillment orders."
+	},
+	"item": [
+		{
+			"name": "Create a new Fulfillment Order",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"seller_fulfillment_order_id\": \"seller-abc-123\",\n  \"displayable_order_id\": \"cust-po-456\",\n  \"displayable_order_date\": \"2025-09-05T10:00:00Z\",\n  \"displayable_order_comment\": \"Thank you for your order!\",\n  \"shipping_speed_category\": \"STANDARD\",\n  \"destination_address\": {\n    \"name\": \"John Doe\",\n    \"address_line_1\": \"123 Main Street\",\n    \"address_line_2\": \"Apt 4B\",\n    \"city\": \"New York\",\n    \"state_or_region\": \"NY\",\n    \"postal_code\": \"10001\",\n    \"country_code\": \"US\"\n  },\n  \"items\": [\n    {\n      \"seller_sku\": \"item-xyz-789\",\n      \"seller_fulfillment_order_item_id\": \"line-item-1\",\n      \"quantity\": 2,\n      \"gift_message\": \"Happy Birthday!\",\n      \"displayable_comment\": \"Special item\"\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "https://api.example.com/fulfillment/order_management/v1/fulfillment_orders",
+					"protocol": "https",
+					"host": [
+						"api",
+						"example",
+						"com"
+					],
+					"path": [
+						"fulfillment",
+						"order_management",
+						"v1",
+						"fulfillment_orders"
+					]
+				},
+				"description": "Submits a new fulfillment order to the system. To ensure idempotency, the client-provided `seller_fulfillment_order_id` is used. If an order with the same ID already exists, a 409 Conflict will be returned."
+			},
+			"response": [
+				{
+					"name": "Accepted",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "https://api.example.com/fulfillment/order_management/v1/fulfillment_orders",
+							"protocol": "https",
+							"host": [
+								"api",
+								"example",
+								"com"
+							],
+							"path": [
+								"fulfillment",
+								"order_management",
+								"v1",
+								"fulfillment_orders"
+							]
+						}
+					},
+					"status": "Accepted",
+					"code": 202,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n  \"order_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"seller_fulfillment_order_id\": \"seller-abc-123\",\n  \"displayable_order_id\": \"cust-po-456\",\n  \"displayable_order_date\": \"2025-09-05T10:00:00Z\",\n  \"displayable_order_comment\": \"Thank you for your order!\",\n  \"shipping_speed_category\": \"STANDARD\",\n  \"destination_address\": {\n    \"name\": \"John Doe\",\n    \"address_line_1\": \"123 Main Street\",\n    \"address_line_2\": \"Apt 4B\",\n    \"city\": \"New York\",\n    \"state_or_region\": \"NY\",\n    \"postal_code\": \"10001\",\n    \"country_code\": \"US\"\n  },\n  \"status\": \"RECEIVED\",\n  \"items\": [\n    {\n      \"seller_sku\": \"item-xyz-789\",\n      \"seller_fulfillment_order_item_id\": \"line-item-1\",\n      \"quantity\": 2,\n      \"gift_message\": \"Happy Birthday!\",\n      \"displayable_comment\": \"Special item\"\n    }\n  ],\n  \"received_date\": \"2025-09-05T10:00:00Z\"\n}"
+				},
+				{
+					"name": "Bad Request",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "https://api.example.com/fulfillment/order_management/v1/fulfillment_orders",
+							"protocol": "https",
+							"host": [
+								"api",
+								"example",
+								"com"
+							],
+							"path": [
+								"fulfillment",
+								"order_management",
+								"v1",
+								"fulfillment_orders"
+							]
+						}
+					},
+					"status": "Bad Request",
+					"code": 400,
+					"_postman_previewlanguage": "text",
+					"header": [],
+					"cookie": [],
+					"body": "Bad Request. The request body is invalid or missing required fields."
+				},
+				{
+					"name": "Conflict",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "https://api.example.com/fulfillment/order_management/v1/fulfillment_orders",
+							"protocol": "https",
+							"host": [
+								"api",
+								"example",
+								"com"
+							],
+							"path": [
+								"fulfillment",
+								"order_management",
+								"v1",
+								"fulfillment_orders"
+							]
+						}
+					},
+					"status": "Conflict",
+					"code": 409,
+					"_postman_previewlanguage": "text",
+					"header": [],
+					"cookie": [],
+					"body": "Conflict. A fulfillment order with the provided `seller_fulfillment_order_id` already exists."
+				}
+			]
+		},
+		{
+			"name": "Get Fulfillment Order by ID",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://api.example.com/fulfillment/order_management/v1/fulfillment_orders/{{order_id}}",
+					"protocol": "https",
+					"host": [
+						"api",
+						"example",
+						"com"
+					],
+					"path": [
+						"fulfillment",
+						"order_management",
+						"v1",
+						"fulfillment_orders",
+						"{{order_id}}"
+					]
+				},
+				"description": "Retrieves the current state and details of a specific fulfillment order using its system-generated unique ID."
+			},
+			"response": [
+				{
+					"name": "OK",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://api.example.com/fulfillment/order_management/v1/fulfillment_orders/{{order_id}}",
+							"protocol": "https",
+							"host": [
+								"api",
+								"example",
+								"com"
+							],
+							"path": [
+								"fulfillment",
+								"order_management",
+								"v1",
+								"fulfillment_orders",
+								"{{order_id}}"
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json"
+						}
+					],
+					"cookie": [],
+					"body": "{\n  \"order_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"seller_fulfillment_order_id\": \"seller-abc-123\",\n  \"displayable_order_id\": \"cust-po-456\",\n  \"displayable_order_date\": \"2025-09-05T10:00:00Z\",\n  \"displayable_order_comment\": \"Thank you for your order!\",\n  \"shipping_speed_category\": \"STANDARD\",\n  \"destination_address\": {\n    \"name\": \"John Doe\",\n    \"address_line_1\": \"123 Main Street\",\n    \"address_line_2\": \"Apt 4B\",\n    \"city\": \"New York\",\n    \"state_or_region\": \"NY\",\n    \"postal_code\": \"10001\",\n    \"country_code\": \"US\"\n  },\n  \"status\": \"RECEIVED\",\n  \"items\": [\n    {\n      \"seller_sku\": \"item-xyz-789\",\n      \"seller_fulfillment_order_item_id\": \"line-item-1\",\n      \"quantity\": 2,\n      \"gift_message\": \"Happy Birthday!\",\n      \"displayable_comment\": \"Special item\"\n    }\n  ],\n  \"received_date\": \"2025-09-05T10:00:00Z\"\n}"
+				},
+				{
+					"name": "Not Found",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "https://api.example.com/fulfillment/order_management/v1/fulfillment_orders/{{order_id}}",
+							"protocol": "https",
+							"host": [
+								"api",
+								"example",
+								"com"
+							],
+							"path": [
+								"fulfillment",
+								"order_management",
+								"v1",
+								"fulfillment_orders",
+								"{{order_id}}"
+							]
+						}
+					},
+					"status": "Not Found",
+					"code": 404,
+					"_postman_previewlanguage": "text",
+					"header": [],
+					"cookie": [],
+					"body": "Not Found. No fulfillment order found with the given ID."
+				}
+			]
+		},
+		{
+			"name": "Cancel a Fulfillment Order",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "https://api.example.com/fulfillment/order_management/v1/fulfillment_orders/{{order_id}}/cancel",
+					"protocol": "https",
+					"host": [
+						"api",
+						"example",
+						"com"
+					],
+					"path": [
+						"fulfillment",
+						"order_management",
+						"v1",
+						"fulfillment_orders",
+						"{{order_id}}",
+						"cancel"
+					]
+				},
+				"description": "Requests the cancellation of a fulfillment order. Cancellation is only possible if the order has not yet been shipped."
+			},
+			"response": [
+				{
+					"name": "Accepted",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "https://api.example.com/fulfillment/order_management/v1/fulfillment_orders/{{order_id}}/cancel",
+							"protocol": "https",
+							"host": [
+								"api",
+								"example",
+								"com"
+							],
+							"path": [
+								"fulfillment",
+								"order_management",
+								"v1",
+								"fulfillment_orders",
+								"{{order_id}}",
+								"cancel"
+							]
+						}
+					},
+					"status": "Accepted",
+					"code": 202,
+					"_postman_previewlanguage": "text",
+					"header": [],
+					"cookie": [],
+					"body": "Accepted. The cancellation request has been accepted and is being processed."
+				},
+				{
+					"name": "Bad Request",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "https://api.example.com/fulfillment/order_management/v1/fulfillment_orders/{{order_id}}/cancel",
+							"protocol": "https",
+							"host": [
+								"api",
+								"example",
+								"com"
+							],
+							"path": [
+								"fulfillment",
+								"order_management",
+								"v1",
+								"fulfillment_orders",
+								"{{order_id}}",
+								"cancel"
+							]
+						}
+					},
+					"status": "Bad Request",
+					"code": 400,
+					"_postman_previewlanguage": "text",
+					"header": [],
+					"cookie": [],
+					"body": "Bad Request. The order is not in a state that allows cancellation (e.g., already shipped)."
+				},
+				{
+					"name": "Not Found",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "https://api.example.com/fulfillment/order_management/v1/fulfillment_orders/{{order_id}}/cancel",
+							"protocol": "https",
+							"host": [
+								"api",
+								"example",
+								"com"
+							],
+							"path": [
+								"fulfillment",
+								"order_management",
+								"v1",
+								"fulfillment_orders",
+								"{{order_id}}",
+								"cancel"
+							]
+						}
+					},
+					"status": "Not Found",
+					"code": 404,
+					"_postman_previewlanguage": "text",
+					"header": [],
+					"cookie": [],
+					"body": "Not Found. No fulfillment order found with the given ID."
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "order_id",
+			"value": "550e8400-e29b-41d4-a716-446655440000",
+			"type": "string",
+			"description": "The unique system-generated identifier for the fulfillment order"
+		}
+	]
+}
