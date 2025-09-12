@@ -1,14 +1,15 @@
 package com.paklog.ordermanagement.domain.model;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
 class FulfillmentOrderTest {
@@ -81,12 +82,14 @@ class FulfillmentOrderTest {
         FulfillmentOrder order = createTestOrder();
         order.receive();
         assertEquals(FulfillmentOrderStatus.RECEIVED, order.getStatus());
+        String cancellationReason = "Customer requested cancellation";
 
         // When
-        order.cancel();
+        order.cancel(cancellationReason);
 
         // Then
         assertEquals(FulfillmentOrderStatus.CANCELLED, order.getStatus());
+        assertEquals(cancellationReason, order.getCancellationReason());
     }
 
     @Test
@@ -95,9 +98,10 @@ class FulfillmentOrderTest {
         FulfillmentOrder order = createTestOrder();
         order.receive();
         order.setStatus(FulfillmentOrderStatus.SHIPPED); // Manually set to shipped
+        String cancellationReason = "Customer requested cancellation";
 
         // When & Then
-        assertThrows(IllegalStateException.class, () -> order.cancel());
+        assertThrows(IllegalStateException.class, () -> order.cancel(cancellationReason));
     }
 
     @Test
@@ -105,11 +109,12 @@ class FulfillmentOrderTest {
         // Given
         FulfillmentOrder order = createTestOrder();
         order.receive();
-        order.cancel(); // First cancel
+        String cancellationReason = "Customer requested cancellation";
+        order.cancel(cancellationReason); // First cancel
         assertEquals(FulfillmentOrderStatus.CANCELLED, order.getStatus());
 
         // When & Then
-        assertThrows(IllegalStateException.class, () -> order.cancel());
+        assertThrows(IllegalStateException.class, () -> order.cancel(cancellationReason));
     }
 
     private FulfillmentOrder createTestOrder() {

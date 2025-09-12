@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.paklog.ordermanagement.application.service.FulfillmentOrderService;
 import com.paklog.ordermanagement.domain.model.FulfillmentOrder;
+import com.paklog.ordermanagement.interfaces.dto.CancelFulfillmentOrderRequest;
 import com.paklog.ordermanagement.interfaces.dto.CreateFulfillmentOrderRequest;
 import com.paklog.ordermanagement.interfaces.dto.FulfillmentOrderDto;
 
@@ -54,9 +55,10 @@ public class FulfillmentOrderController {
     }
     
     @PostMapping("/{orderId}/cancel")
-    public ResponseEntity<Void> cancelFulfillmentOrder(@PathVariable UUID orderId) {
+    public ResponseEntity<Void> cancelFulfillmentOrder(@PathVariable UUID orderId, 
+                                                      @RequestBody CancelFulfillmentOrderRequest request) {
         try {
-            fulfillmentOrderService.cancelOrder(orderId);
+            fulfillmentOrderService.cancelOrder(orderId, request.getCancellationReason());
             return ResponseEntity.status(HttpStatus.ACCEPTED).build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
@@ -91,6 +93,7 @@ public class FulfillmentOrderController {
         dto.setStatus(order.getStatus());
         dto.setItems(order.getItems());
         dto.setReceivedDate(order.getReceivedDate());
+        dto.setCancellationReason(order.getCancellationReason());
         return dto;
     }
 }

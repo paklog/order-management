@@ -19,6 +19,7 @@ public class FulfillmentOrderDto {
     private FulfillmentOrderStatus status;
     private List<OrderItem> items;
     private LocalDateTime receivedDate;
+    private String cancellationReason;
 
     // Getters and setters
     public UUID getOrderId() {
@@ -99,5 +100,13 @@ public class FulfillmentOrderDto {
 
     public void setReceivedDate(LocalDateTime receivedDate) {
         this.receivedDate = receivedDate;
+    }
+
+    public String getCancellationReason() {
+        return cancellationReason;
+    }
+
+    public void setCancellationReason(String cancellationReason) {
+        this.cancellationReason = cancellationReason;
     }
 }

@@ -1,25 +1,31 @@
 package com.paklog.ordermanagement.application.service;
 
-import com.paklog.ordermanagement.domain.model.Address;
-import com.paklog.ordermanagement.domain.model.FulfillmentOrder;
-import com.paklog.ordermanagement.domain.model.FulfillmentOrderStatus;
-import com.paklog.ordermanagement.domain.model.OrderItem;
-import com.paklog.ordermanagement.domain.repository.FulfillmentOrderRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.MockitoAnnotations;
+
+import com.paklog.ordermanagement.domain.model.Address;
+import com.paklog.ordermanagement.domain.model.FulfillmentOrder;
+import com.paklog.ordermanagement.domain.model.FulfillmentOrderStatus;
+import com.paklog.ordermanagement.domain.model.OrderItem;
+import com.paklog.ordermanagement.domain.repository.FulfillmentOrderRepository;
 
 class FulfillmentOrderServiceTest {
 
@@ -105,6 +111,7 @@ class FulfillmentOrderServiceTest {
     void testCancelOrder_Success() {
         // Given
         UUID orderId = UUID.randomUUID();
+        String cancellationReason = "Customer requested cancellation";
         FulfillmentOrder order = createTestOrder();
         order.setOrderId(orderId);
         order.receive(); // Set to received status
@@ -112,23 +119,26 @@ class FulfillmentOrderServiceTest {
         when(fulfillmentOrderRepository.save(any(FulfillmentOrder.class))).thenReturn(order);
 
         // When
-        FulfillmentOrder cancelledOrder = fulfillmentOrderService.cancelOrder(orderId);
+        FulfillmentOrder cancelledOrder = fulfillmentOrderService.cancelOrder(orderId, cancellationReason);
 
         // Then
         assertNotNull(cancelledOrder);
         assertEquals(FulfillmentOrderStatus.CANCELLED, cancelledOrder.getStatus());
+        assertEquals(cancellationReason, cancelledOrder.getCancellationReason());
         verify(fulfillmentOrderRepository).findById(orderId);
         verify(fulfillmentOrderRepository).save(order);
+        verify(eventPublisherService).publishEvent(any());
     }
 
     @Test
     void testCancelOrder_NotFound() {
         // Given
         UUID orderId = UUID.randomUUID();
+        String cancellationReason = "Customer requested cancellation";
         when(fulfillmentOrderRepository.findById(orderId)).thenReturn(Optional.empty());
 
         // When & Then
-        assertThrows(IllegalArgumentException.class, () -> fulfillmentOrderService.cancelOrder(orderId));
+        assertThrows(IllegalArgumentException.class, () -> fulfillmentOrderService.cancelOrder(orderId, cancellationReason));
         verify(fulfillmentOrderRepository).findById(orderId);
         verify(fulfillmentOrderRepository, never()).save(any());
     }

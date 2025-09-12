@@ -1,32 +1,34 @@
 package com.paklog.ordermanagement.interfaces.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.paklog.ordermanagement.application.service.FulfillmentOrderService;
-import com.paklog.ordermanagement.domain.model.Address;
-import com.paklog.ordermanagement.domain.model.FulfillmentOrder;
-import com.paklog.ordermanagement.domain.model.FulfillmentOrderStatus;
-import com.paklog.ordermanagement.domain.model.OrderItem;
-import com.paklog.ordermanagement.interfaces.dto.CreateFulfillmentOrderRequest;
-import com.paklog.ordermanagement.interfaces.dto.FulfillmentOrderDto;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentMatchers;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.paklog.ordermanagement.application.service.FulfillmentOrderService;
+import com.paklog.ordermanagement.domain.model.Address;
+import com.paklog.ordermanagement.domain.model.FulfillmentOrder;
+import com.paklog.ordermanagement.domain.model.OrderItem;
+import com.paklog.ordermanagement.interfaces.dto.CancelFulfillmentOrderRequest;
+import com.paklog.ordermanagement.interfaces.dto.CreateFulfillmentOrderRequest;
+import com.paklog.ordermanagement.interfaces.dto.FulfillmentOrderDto;
 
 @WebMvcTest(FulfillmentOrderController.class)
 class FulfillmentOrderControllerTest {
@@ -107,10 +109,13 @@ class FulfillmentOrderControllerTest {
     void testCancelFulfillmentOrder_Success() throws Exception {
         // Given
         UUID orderId = testOrder.getOrderId();
-        when(fulfillmentOrderService.cancelOrder(orderId)).thenReturn(testOrder);
+        CancelFulfillmentOrderRequest request = new CancelFulfillmentOrderRequest("Customer requested cancellation");
+        when(fulfillmentOrderService.cancelOrder(orderId, request.getCancellationReason())).thenReturn(testOrder);
 
         // When & Then
-        mockMvc.perform(post("/fulfillment_orders/{orderId}/cancel", orderId))
+        mockMvc.perform(post("/fulfillment_orders/{orderId}/cancel", orderId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isAccepted());
     }
 
@@ -118,11 +123,14 @@ class FulfillmentOrderControllerTest {
     void testCancelFulfillmentOrder_NotFound() throws Exception {
         // Given
         UUID orderId = UUID.randomUUID();
-        when(fulfillmentOrderService.cancelOrder(orderId))
+        CancelFulfillmentOrderRequest request = new CancelFulfillmentOrderRequest("Customer requested cancellation");
+        when(fulfillmentOrderService.cancelOrder(orderId, request.getCancellationReason()))
                 .thenThrow(new IllegalArgumentException("Order not found"));
 
         // When & Then
-        mockMvc.perform(post("/fulfillment_orders/{orderId}/cancel", orderId))
+        mockMvc.perform(post("/fulfillment_orders/{orderId}/cancel", orderId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());
     }
 
@@ -189,6 +197,7 @@ class FulfillmentOrderControllerTest {
         dto.setStatus(order.getStatus());
         dto.setItems(order.getItems());
         dto.setReceivedDate(order.getReceivedDate());
+        dto.setCancellationReason(order.getCancellationReason());
         return dto;
     }
 }

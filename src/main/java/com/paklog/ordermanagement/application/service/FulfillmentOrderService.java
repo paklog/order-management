@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.paklog.ordermanagement.domain.event.FulfillmentOrderCancelledEvent;
 import com.paklog.ordermanagement.domain.event.FulfillmentOrderReceivedEvent;
 import com.paklog.ordermanagement.domain.model.FulfillmentOrder;
 import com.paklog.ordermanagement.domain.repository.FulfillmentOrderRepository;
@@ -50,14 +51,20 @@ public class FulfillmentOrderService {
     }
     
     @Transactional
-    public FulfillmentOrder cancelOrder(UUID orderId) {
+    public FulfillmentOrder cancelOrder(UUID orderId, String cancellationReason) {
         FulfillmentOrder order = fulfillmentOrderRepository.findById(orderId)
             .orElseThrow(() -> new IllegalArgumentException("Order not found"));
         
-        order.cancel();
+        order.cancel(cancellationReason);
         FulfillmentOrder savedOrder = fulfillmentOrderRepository.save(order);
         
-        // TODO: Publish cancellation event
+        // Publish cancellation event
+        FulfillmentOrderCancelledEvent event = new FulfillmentOrderCancelledEvent(
+            savedOrder.getOrderId().toString(),
+            savedOrder.getSellerFulfillmentOrderId(),
+            savedOrder.getCancellationReason()
+        );
+        eventPublisherService.publishEvent(event);
         
         return savedOrder;
     }

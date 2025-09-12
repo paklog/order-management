@@ -20,6 +20,7 @@ public class FulfillmentOrder {
     private FulfillmentOrderStatus status;
     private List<OrderItem> items;
     private LocalDateTime receivedDate;
+    private String cancellationReason;
 
     public FulfillmentOrder() {
         // Default constructor for frameworks
@@ -64,7 +65,7 @@ public class FulfillmentOrder {
         this.status = FulfillmentOrderStatus.INVALIDATED;
     }
 
-    public void cancel() {
+    public void cancel(String cancellationReason) {
         if (this.status == FulfillmentOrderStatus.SHIPPED) {
             throw new IllegalStateException("Cannot cancel an order that has already been shipped");
         }
@@ -72,6 +73,7 @@ public class FulfillmentOrder {
             throw new IllegalStateException("Order is already cancelled");
         }
         this.status = FulfillmentOrderStatus.CANCELLED;
+        this.cancellationReason = cancellationReason;
     }
 
     // Getters and setters
@@ -153,5 +155,13 @@ public class FulfillmentOrder {
 
     public void setReceivedDate(LocalDateTime receivedDate) {
         this.receivedDate = receivedDate;
+    }
+
+    public String getCancellationReason() {
+        return cancellationReason;
+    }
+
+    public void setCancellationReason(String cancellationReason) {
+        this.cancellationReason = cancellationReason;
     }
 }
