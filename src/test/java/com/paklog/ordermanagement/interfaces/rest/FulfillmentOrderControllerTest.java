@@ -63,8 +63,8 @@ class FulfillmentOrderControllerTest {
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isAccepted())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.orderId").value(testOrderDto.getOrderId().toString()))
-                .andExpect(jsonPath("$.sellerFulfillmentOrderId").value(testOrderDto.getSellerFulfillmentOrderId()));
+                .andExpect(jsonPath("$.order_id").value(testOrderDto.getOrderId().toString()))
+                .andExpect(jsonPath("$.seller_fulfillment_order_id").value(testOrderDto.getSellerFulfillmentOrderId()));
     }
 
     @Test
@@ -88,10 +88,10 @@ class FulfillmentOrderControllerTest {
         when(fulfillmentOrderService.getOrderById(orderId)).thenReturn(Optional.of(testOrder));
 
         // When & Then
-        mockMvc.perform(get("/fulfillment_orders/{orderId}", orderId))
+        mockMvc.perform(get("/fulfillment_orders/{order_id}", orderId))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.orderId").value(testOrderDto.getOrderId().toString()));
+                .andExpect(jsonPath("$.order_id").value(testOrderDto.getOrderId().toString()));
     }
 
     @Test
@@ -101,7 +101,7 @@ class FulfillmentOrderControllerTest {
         when(fulfillmentOrderService.getOrderById(orderId)).thenReturn(Optional.empty());
 
         // When & Then
-        mockMvc.perform(get("/fulfillment_orders/{orderId}", orderId))
+        mockMvc.perform(get("/fulfillment_orders/{order_id}", orderId))
                 .andExpect(status().isNotFound());
     }
 
@@ -113,7 +113,7 @@ class FulfillmentOrderControllerTest {
         when(fulfillmentOrderService.cancelOrder(orderId, request.getCancellationReason())).thenReturn(testOrder);
 
         // When & Then
-        mockMvc.perform(post("/fulfillment_orders/{orderId}/cancel", orderId)
+        mockMvc.perform(post("/fulfillment_orders/{order_id}/cancel", orderId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isAccepted());
@@ -128,7 +128,7 @@ class FulfillmentOrderControllerTest {
                 .thenThrow(new IllegalArgumentException("Order not found"));
 
         // When & Then
-        mockMvc.perform(post("/fulfillment_orders/{orderId}/cancel", orderId)
+        mockMvc.perform(post("/fulfillment_orders/{order_id}/cancel", orderId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());

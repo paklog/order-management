@@ -46,16 +46,16 @@ public class FulfillmentOrderController {
         }
     }
     
-    @GetMapping("/{orderId}")
-    public ResponseEntity<FulfillmentOrderDto> getFulfillmentOrderById(@PathVariable UUID orderId) {
+    @GetMapping("/{order_id}")
+    public ResponseEntity<FulfillmentOrderDto> getFulfillmentOrderById(@PathVariable("order_id") UUID orderId) {
         return fulfillmentOrderService.getOrderById(orderId)
             .map(this::convertToDto)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
     }
     
-    @PostMapping("/{orderId}/cancel")
-    public ResponseEntity<Void> cancelFulfillmentOrder(@PathVariable UUID orderId, 
+    @PostMapping("/{order_id}/cancel")
+    public ResponseEntity<Void> cancelFulfillmentOrder(@PathVariable("order_id") UUID orderId, 
                                                       @RequestBody CancelFulfillmentOrderRequest request) {
         try {
             fulfillmentOrderService.cancelOrder(orderId, request.getCancellationReason());

@@ -47,10 +47,13 @@ class EventPublisherServiceTest {
     }
 
     @Test
-    void testPublishEvent() {
+    void testPublishEvent() throws Exception {
         // Given
         FulfillmentOrder order = createTestOrder();
         FulfillmentOrderReceivedEvent event = new FulfillmentOrderReceivedEvent(order);
+        
+        // Mock ObjectMapper to return JSON string
+        when(objectMapper.writeValueAsString(any())).thenReturn("{\"orderId\":\"123\"}");
 
         // When
         eventPublisherService.publishEvent(event);
