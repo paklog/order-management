@@ -49,7 +49,7 @@ class FulfillmentOrderServiceTest {
         FulfillmentOrder order = createTestOrder();
         when(fulfillmentOrderRepository.findBySellerFulfillmentOrderId(order.getSellerFulfillmentOrderId()))
                 .thenReturn(Optional.empty());
-        when(fulfillmentOrderRepository.save(any(FulfillmentOrder.class))).thenReturn(order);
+        when(fulfillmentOrderRepository.saveOrder(any(FulfillmentOrder.class))).thenReturn(order);
 
         // When
         FulfillmentOrder createdOrder = fulfillmentOrderService.createOrder(order);
@@ -58,7 +58,7 @@ class FulfillmentOrderServiceTest {
         assertNotNull(createdOrder);
         assertEquals(FulfillmentOrderStatus.RECEIVED, createdOrder.getStatus());
         verify(fulfillmentOrderRepository).findBySellerFulfillmentOrderId(order.getSellerFulfillmentOrderId());
-        verify(fulfillmentOrderRepository).save(order);
+        verify(fulfillmentOrderRepository).saveOrder(order);
         verify(eventPublisherService).publishEvent(any());
     }
 
@@ -72,7 +72,7 @@ class FulfillmentOrderServiceTest {
         // When & Then
         assertThrows(IllegalStateException.class, () -> fulfillmentOrderService.createOrder(order));
         verify(fulfillmentOrderRepository).findBySellerFulfillmentOrderId(order.getSellerFulfillmentOrderId());
-        verify(fulfillmentOrderRepository, never()).save(any());
+        verify(fulfillmentOrderRepository, never()).saveOrder(any());
         verify(eventPublisherService, never()).publishEvent(any());
     }
 
@@ -116,7 +116,7 @@ class FulfillmentOrderServiceTest {
         order.setOrderId(orderId);
         order.receive(); // Set to received status
         when(fulfillmentOrderRepository.findById(orderId)).thenReturn(Optional.of(order));
-        when(fulfillmentOrderRepository.save(any(FulfillmentOrder.class))).thenReturn(order);
+        when(fulfillmentOrderRepository.saveOrder(any(FulfillmentOrder.class))).thenReturn(order);
 
         // When
         FulfillmentOrder cancelledOrder = fulfillmentOrderService.cancelOrder(orderId, cancellationReason);
@@ -126,7 +126,7 @@ class FulfillmentOrderServiceTest {
         assertEquals(FulfillmentOrderStatus.CANCELLED, cancelledOrder.getStatus());
         assertEquals(cancellationReason, cancelledOrder.getCancellationReason());
         verify(fulfillmentOrderRepository).findById(orderId);
-        verify(fulfillmentOrderRepository).save(order);
+        verify(fulfillmentOrderRepository).saveOrder(order);
         verify(eventPublisherService).publishEvent(any());
     }
 
@@ -140,7 +140,7 @@ class FulfillmentOrderServiceTest {
         // When & Then
         assertThrows(IllegalArgumentException.class, () -> fulfillmentOrderService.cancelOrder(orderId, cancellationReason));
         verify(fulfillmentOrderRepository).findById(orderId);
-        verify(fulfillmentOrderRepository, never()).save(any());
+        verify(fulfillmentOrderRepository, never()).saveOrder(any());
     }
 
     private FulfillmentOrder createTestOrder() {

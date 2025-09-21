@@ -42,7 +42,7 @@ public class DatabaseSeeder implements CommandLineRunner {
         if (fulfillmentOrderRepository.count() == 0) {
             log.info("No orders found. Seeding database with 100 orders...");
             for (int i = 0; i < 100; i++) {
-                fulfillmentOrderRepository.save(createFakeOrder());
+                fulfillmentOrderRepository.saveOrder(createFakeOrder());
             }
             log.info("Database seeding complete.");
         } else {
@@ -73,6 +73,7 @@ public class DatabaseSeeder implements CommandLineRunner {
             new Address(
                 faker.name().fullName(),
                 faker.address().streetAddress(),
+                faker.address().secondaryAddress(),
                 faker.address().city(),
                 faker.address().stateAbbr(),
                 faker.address().zipCode(),

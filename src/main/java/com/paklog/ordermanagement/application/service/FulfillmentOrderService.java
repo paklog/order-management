@@ -37,7 +37,7 @@ public class FulfillmentOrderService {
         order.receive();
         
         // Save the order
-        FulfillmentOrder savedOrder = fulfillmentOrderRepository.save(order);
+        FulfillmentOrder savedOrder = fulfillmentOrderRepository.saveOrder(order);
         
         // Publish event
         FulfillmentOrderReceivedEvent event = new FulfillmentOrderReceivedEvent(savedOrder);
@@ -56,7 +56,7 @@ public class FulfillmentOrderService {
             .orElseThrow(() -> new IllegalArgumentException("Order not found"));
         
         order.cancel(cancellationReason);
-        FulfillmentOrder savedOrder = fulfillmentOrderRepository.save(order);
+        FulfillmentOrder savedOrder = fulfillmentOrderRepository.saveOrder(order);
         
         // Publish cancellation event
         FulfillmentOrderCancelledEvent event = new FulfillmentOrderCancelledEvent(

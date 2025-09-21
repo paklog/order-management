@@ -12,4 +12,8 @@ import com.paklog.ordermanagement.domain.repository.FulfillmentOrderRepository;
 @Repository
 public interface MongoFulfillmentOrderRepository extends MongoRepository<FulfillmentOrder, UUID>, FulfillmentOrderRepository {
     Optional<FulfillmentOrder> findBySellerFulfillmentOrderId(String sellerFulfillmentOrderId);
+
+    default FulfillmentOrder saveOrder(FulfillmentOrder order) {
+        return save(order);
+    }
 }
