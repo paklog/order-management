@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -28,10 +29,15 @@ public class FulfillmentOrderController {
     }
     
     @PostMapping
-    public ResponseEntity<FulfillmentOrderDto> createFulfillmentOrder(@RequestBody CreateFulfillmentOrderRequest request) {
+    public ResponseEntity<FulfillmentOrderDto> createFulfillmentOrder(
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestBody CreateFulfillmentOrderRequest request) {
         try {
+            if (idempotencyKey == null || idempotencyKey.isBlank()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            }
             // Convert request to domain model
-            FulfillmentOrder order = convertToDomain(request);
+            FulfillmentOrder order = convertToDomain(request, idempotencyKey);
             
             // Create the order
             FulfillmentOrder createdOrder = fulfillmentOrderService.createOrder(order);
@@ -68,7 +74,7 @@ public class FulfillmentOrderController {
     }
     
     // Helper methods for conversion
-    private FulfillmentOrder convertToDomain(CreateFulfillmentOrderRequest request) {
+    private FulfillmentOrder convertToDomain(CreateFulfillmentOrderRequest request, String idempotencyKey) {
         return new FulfillmentOrder(
             UUID.randomUUID(),
             request.getSellerFulfillmentOrderId(),
@@ -77,7 +83,8 @@ public class FulfillmentOrderController {
             request.getDisplayableOrderComment(),
             request.getShippingSpeedCategory(),
             request.getDestinationAddress(),
-            request.getItems()
+            request.getItems(),
+            idempotencyKey
         );
     }
     

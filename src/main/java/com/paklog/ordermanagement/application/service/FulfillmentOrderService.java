@@ -25,6 +25,14 @@ public class FulfillmentOrderService {
     
     @Transactional
     public FulfillmentOrder createOrder(FulfillmentOrder order) {
+        // Check for idempotent replay
+        Optional<FulfillmentOrder> existingByKey =
+            fulfillmentOrderRepository.findByIdempotencyKey(order.getIdempotencyKey());
+
+        if (existingByKey.isPresent()) {
+            return existingByKey.get();
+        }
+
         // Check if order with same sellerFulfillmentOrderId already exists
         Optional<FulfillmentOrder> existingOrder = 
             fulfillmentOrderRepository.findBySellerFulfillmentOrderId(order.getSellerFulfillmentOrderId());

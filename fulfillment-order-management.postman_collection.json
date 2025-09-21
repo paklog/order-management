@@ -14,6 +14,11 @@
 					{
 						"key": "Content-Type",
 						"value": "application/json"
+					},
+					{
+						"key": "Idempotency-Key",
+						"value": "{{idempotency_key}}",
+						"description": "Unique key supplied by the client to make this call idempotent"
 					}
 				],
 				"body": {
@@ -35,7 +40,7 @@
 						"fulfillment_orders"
 					]
 				},
-				"description": "Submits a new fulfillment order to the system. To ensure idempotency, the client-provided `seller_fulfillment_order_id` is used. If an order with the same ID already exists, a 409 Conflict will be returned."
+				"description": "Submits a new fulfillment order to the system. Provide an `Idempotency-Key` header so retries return the same result without creating duplicates. If an order with the same payload `seller_fulfillment_order_id` already exists, a 409 Conflict will be returned."
 			},
 			"response": [
 				{

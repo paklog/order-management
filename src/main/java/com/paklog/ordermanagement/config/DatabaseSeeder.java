@@ -79,7 +79,8 @@ public class DatabaseSeeder implements CommandLineRunner {
                 faker.address().zipCode(),
                 "US"
             ),
-            items
+            items,
+            UUID.randomUUID().toString()
         );
     }
 }

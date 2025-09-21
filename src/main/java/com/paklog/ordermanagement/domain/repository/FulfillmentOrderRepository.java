@@ -9,5 +9,6 @@ public interface FulfillmentOrderRepository {
     FulfillmentOrder saveOrder(FulfillmentOrder order);
     Optional<FulfillmentOrder> findById(UUID orderId);
     Optional<FulfillmentOrder> findBySellerFulfillmentOrderId(String sellerFulfillmentOrderId);
+    Optional<FulfillmentOrder> findByIdempotencyKey(String idempotencyKey);
     void deleteById(UUID orderId);
 }

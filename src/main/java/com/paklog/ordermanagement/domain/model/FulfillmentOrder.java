@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @Document(collection = "fulfillment_orders")
@@ -21,6 +22,8 @@ public class FulfillmentOrder {
     private List<OrderItem> items;
     private LocalDateTime receivedDate;
     private String cancellationReason;
+    @Indexed(unique = true, sparse = true)
+    private String idempotencyKey;
 
     public FulfillmentOrder() {
         // Default constructor for frameworks
@@ -29,7 +32,7 @@ public class FulfillmentOrder {
     public FulfillmentOrder(UUID orderId, String sellerFulfillmentOrderId, String displayableOrderId,
                             LocalDateTime displayableOrderDate, String displayableOrderComment,
                             String shippingSpeedCategory, Address destinationAddress,
-                            List<OrderItem> items) {
+                            List<OrderItem> items, String idempotencyKey) {
         this.orderId = orderId;
         this.sellerFulfillmentOrderId = sellerFulfillmentOrderId;
         this.displayableOrderId = displayableOrderId;
@@ -40,6 +43,15 @@ public class FulfillmentOrder {
         this.items = items;
         this.status = FulfillmentOrderStatus.NEW;
         this.receivedDate = LocalDateTime.now();
+        this.idempotencyKey = idempotencyKey;
+    }
+
+    public FulfillmentOrder(UUID orderId, String sellerFulfillmentOrderId, String displayableOrderId,
+                            LocalDateTime displayableOrderDate, String displayableOrderComment,
+                            String shippingSpeedCategory, Address destinationAddress,
+                            List<OrderItem> items) {
+        this(orderId, sellerFulfillmentOrderId, displayableOrderId, displayableOrderDate,
+            displayableOrderComment, shippingSpeedCategory, destinationAddress, items, null);
     }
 
     // Business methods
@@ -163,5 +175,13 @@ public class FulfillmentOrder {
 
     public void setCancellationReason(String cancellationReason) {
         this.cancellationReason = cancellationReason;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
     }
 }
