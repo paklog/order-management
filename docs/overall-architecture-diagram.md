@@ -220,7 +220,7 @@ sequenceDiagram
 ```mermaid
 graph TB
     subgraph "Runtime Environment"
-        JVM[Java 17 JVM]
+        JVM[Java 21 JVM]
         SPRING[Spring Boot 3.3.3]
     end
 

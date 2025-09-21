@@ -1,6 +1,6 @@
 # Multi-stage build for optimization
 # Build stage
-FROM openjdk:17-jdk-slim AS builder
+FROM eclipse-temurin:21-jdk AS builder
 
 # Install Maven
 RUN apt-get update && \
@@ -22,7 +22,7 @@ COPY src src
 RUN mvn clean package -DskipTests
 
 # Runtime stage
-FROM openjdk:17-jre-slim
+FROM eclipse-temurin:21-jre
 
 # Set working directory
 WORKDIR /app

@@ -18,7 +18,7 @@ The Order Management Service handles the lifecycle of fulfillment orders, includ
 
 ## Technology Stack
 
-- **Language**: Java 17
+- **Language**: Java 21
 - **Framework**: Spring Boot 3.3.3
 - **Database**: MongoDB
 - **Messaging**: Apache Kafka
@@ -75,7 +75,7 @@ Events are published using the transactional outbox pattern to ensure at-least-o
 
 ### Prerequisites
 
-- Java 17
+- Java 21
 - Maven 3.6+
 - Docker and Docker Compose (for containerized deployment)
 - MongoDB (if running without Docker)

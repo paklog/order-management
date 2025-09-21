@@ -149,7 +149,7 @@ sequenceDiagram
 
 ## 4. Technology Stack
 
-- **Language:** Java 17
+- **Language:** Java 21
 - **Framework:** Spring Boot
 - **Database:** MongoDB
 - **Messaging:** Apache Kafka
