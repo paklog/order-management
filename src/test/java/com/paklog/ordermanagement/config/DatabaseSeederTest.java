@@ -13,8 +13,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.paklog.ordermanagement.AbstractIntegrationTest;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+
+@SpringBootTest
+@ActiveProfiles("test")
 @ExtendWith(MockitoExtension.class)
-class DatabaseSeederTest {
+class DatabaseSeederTest extends AbstractIntegrationTest {
 
     @Mock
     private MongoFulfillmentOrderRepository fulfillmentOrderRepository;

@@ -9,10 +9,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
+import com.paklog.ordermanagement.AbstractIntegrationTest;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
-class FulfillmentOrderTest {
+@ActiveProfiles("test")
+class FulfillmentOrderTest extends AbstractIntegrationTest {
 
     @Test
     void testCreateOrder() {

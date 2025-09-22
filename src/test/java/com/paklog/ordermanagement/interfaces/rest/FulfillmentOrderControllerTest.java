@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -31,6 +32,7 @@ import com.paklog.ordermanagement.interfaces.dto.CreateFulfillmentOrderRequest;
 import com.paklog.ordermanagement.interfaces.dto.FulfillmentOrderDto;
 
 @WebMvcTest(FulfillmentOrderController.class)
+@ActiveProfiles("test")
 class FulfillmentOrderControllerTest {
 
     @Autowired
@@ -59,6 +61,7 @@ class FulfillmentOrderControllerTest {
 
         // When & Then
         mockMvc.perform(post("/fulfillment_orders")
+                .header("Idempotency-Key", "test-key")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isAccepted())
@@ -76,6 +79,7 @@ class FulfillmentOrderControllerTest {
 
         // When & Then
         mockMvc.perform(post("/fulfillment_orders")
+                .header("Idempotency-Key", "test-key")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict());
