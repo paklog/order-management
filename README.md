@@ -1,20 +1,65 @@
 # Order Management Service
 
-This is the Order Management Service for Paklog, implementing the capabilities defined in the OpenAPI and AsyncAPI specifications.
+This is the Order Management Service for Paklog, a key component in our logistics and fulfillment platform. It is responsible for managing the entire lifecycle of a fulfillment order, from its creation to its final shipment.
 
 ## Table of Contents
 
-- [Overview](#overview)
+- [Business Overview](#business-overview)
+- [High-Level Architecture](#high-level-architecture)
 - [Technology Stack](#technology-stack)
-- [Architecture](#architecture)
 - [API Endpoints](#api-endpoints)
 - [Event Publishing](#event-publishing)
-- [Getting Started](#getting-started)
-- [Testing](#testing)
+- [Developer's Guide](#developers-guide)
+  - [Getting Started](#getting-started)
+  - [Testing](#testing)
+  - [API and Event Specs](#api-and-event-specs)
+  - [CI/CD](#cicd)
+  - [Observability](#observability)
 
-## Overview
+## Business Overview
 
-The Order Management Service handles the lifecycle of fulfillment orders, including creation, retrieval, and cancellation. It also publishes domain events to enable decoupled, choreographed workflows with other bounded contexts.
+The Order Management Service is the backbone of our fulfillment process. A **fulfillment order** represents a request from a seller to pick, pack, and ship items to a customer. This service orchestrates this process by:
+
+- **Receiving and validating** new fulfillment orders from our partners.
+- **Providing real-time status updates** as the order moves through the warehouse.
+- **Integrating with other services** through domain events, such as inventory and shipping.
+- **Ensuring data consistency and reliability** through patterns like the transactional outbox.
+
+This service is designed to be highly available and scalable to support our growing business needs.
+
+## High-Level Architecture
+
+This service follows the **Hexagonal Architecture** (Ports and Adapters) pattern to isolate the core business logic from external concerns.
+
+```
++---------------------------------------------------------------------------------+
+|                                Order Management Service                         |
+|                                                                                 |
+|    +----------------------+      +-------------------+      +-----------------+ |
+|    |      Interfaces      |----->|    Application    |----->|      Domain     | |
+|    | (REST Controllers)   |      |     Services      |      | (Business Logic)| |
+|    +----------------------+      +-------------------+      +-----------------+ |
+|             ^                            |                            |         |
+|             |                            v                            v         |
+|    +----------------------+      +-------------------+      +-----------------+ |
+|    |      Infrastructure  |      |   Infrastructure  |      |  Infrastructure | |
+|    | (Spring Web)         |      | (Kafka, Outbox)   |      | (MongoDB)       | |
+|    +----------------------+      +-------------------+      +-----------------+ |
+|                                                                                 |
++---------------------------------------------------------------------------------+
+       ^               |                ^                |               ^
+       |               v                |                v               |
++--------------+ +----------------+ +----------------+ +-------------+ +-------------+
+|   API Gateway  | |      UI        | |      Kafka     | |   MongoDB   | | 3rd Party   |
++--------------+ +----------------+ +----------------+ +-------------+ +-------------+
+```
+
+- **Domain Layer**: Contains the core business logic, entities, and value objects.
+- **Application Layer**: Orchestrates the business logic and handles application-level tasks.
+- **Interfaces Layer**: Exposes the application's capabilities to the outside world (e.g., REST API).
+- **Infrastructure Layer**: Implements the ports defined by the application layer (e.g., repositories, event publishers).
+
+For a more detailed diagram, see the [architecture documentation](./docs/architecture.md).
 
 ## Technology Stack
 
@@ -25,173 +70,116 @@ The Order Management Service handles the lifecycle of fulfillment orders, includ
 - **Event Standard**: CloudEvents
 - **Build Tool**: Maven
 
-## Architecture
-
-This service follows the Hexagonal Architecture (Ports and Adapters) pattern:
-
-- **Domain Layer**: Contains the business logic and domain models
-- **Application Layer**: Contains the application services that orchestrate the business logic
-- **Infrastructure Layer**: Contains the implementations of the ports (repositories, messaging, etc.)
-- **Interfaces Layer**: Contains the REST controllers and DTOs
-
 ## API Endpoints
 
 ### Create Fulfillment Order
 
-```
-POST /fulfillment_orders
-```
+`POST /fulfillment_orders`
 
-Creates a new fulfillment order. Returns a 202 Accepted status on success or 409 Conflict if an order with the same sellerFulfillmentOrderId already exists.
+Creates a new fulfillment order. Returns `202 Accepted` on success or `409 Conflict` if an order with the same `sellerFulfillmentOrderId` already exists.
 
 ### Get Fulfillment Order by ID
 
-```
-GET /fulfillment_orders/{order_id}
-```
+`GET /fulfillment_orders/{order_id}`
 
-Retrieves a fulfillment order by its system-generated ID. Returns 200 OK with the order details or 404 Not Found if the ID does not exist.
+Retrieves a fulfillment order by its system-generated ID. Returns `200 OK` with the order details or `404 Not Found`.
 
 ### Cancel Fulfillment Order
 
-```
-POST /fulfillment_orders/{order_id}/cancel
-```
+`POST /fulfillment_orders/{order_id}/cancel`
 
-Cancels a fulfillment order. Returns 202 Accepted on success or 400 Bad Request if the cancellation is not allowed by the order's state.
+Cancels a fulfillment order. Returns `202 Accepted` on success or `400 Bad Request` if the cancellation is not allowed.
 
 ## Event Publishing
 
-The service publishes the following domain events to a Kafka topic in CloudEvents format:
+The service publishes domain events to a Kafka topic in CloudEvents format. Key events include:
 
-- `com.example.fulfillment.order.received`: Published when a new fulfillment order is successfully accepted
-- `com.example.fulfillment.order.validated`: Published when an order has passed all business rule validations
-- `com.example.fulfillment.order.invalidated`: Published when an order fails business rule validation
-- `com.example.fulfillment.order.cancelled`: Published when an order has been successfully cancelled
+- `com.example.fulfillment.order.received`
+- `com.example.fulfillment.order.validated`
+- `com.example.fulfillment.order.invalidated`
+- `com.example.fulfillment.order.cancelled`
 
 Events are published using the transactional outbox pattern to ensure at-least-once delivery.
 
-## Getting Started
+## Developer's Guide
 
-### Prerequisites
+### Getting Started
+
+#### Prerequisites
 
 - Java 21
 - Maven 3.6+
-- Docker and Docker Compose (for containerized deployment)
-- MongoDB (if running without Docker)
-- Apache Kafka (if running without Docker)
+- Docker and Docker Compose
 
-### Building the Application
+#### Building the Application
 
 ```bash
 mvn clean install
 ```
 
-### Running the Application with Docker Compose (Recommended)
+#### Running with Docker Compose (Recommended)
 
-The easiest way to run the application is with Docker Compose, which will start the application along with all its dependencies:
+The easiest way to run the application and its dependencies is with Docker Compose:
 
 ```bash
 docker-compose up --build
 ```
 
 This will start:
-- The Order Management Service on port 8080
-- MongoDB on port 27017
-- Kafka on port 9092
+- The Order Management Service on port `8080`
+- MongoDB on port `27017`
+- Kafka on port `9092`
 
-For development, you can use the override configuration which provides live reloading:
+For development with live reloading, use:
 
 ```bash
 docker-compose up
 ```
 
-### Running in Production
+#### Running in Production
 
-For production deployment, use the production docker-compose file:
+For production, use the `docker-compose.prod.yml` file:
 
 ```bash
-# Copy the example environment file and modify it with your secure passwords
+# Copy and configure the .env file
 cp .env.example .env
-# Edit .env file to set secure passwords
+# Edit .env with secure passwords
 
-# Run with production configuration
+# Run in detached mode
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
 
-### Running the Application Locally
+### Testing
 
-If you prefer to run the application locally without Docker, you'll need to have MongoDB and Kafka running separately:
+#### Unit and Integration Tests
 
-```bash
-mvn spring-boot:run
-```
-
-Or:
-
-```bash
-java -jar target/order-management-0.0.1-SNAPSHOT.jar
-```
-
-### Configuration
-
-The application can be configured using the `application.yml` file in `src/main/resources`.
-
-## Testing
-
-### Unit Tests
-
-Run unit tests with:
-
-```bash
-mvn test
-```
-
-### Integration Tests
-
-Run integration tests with:
+Run all tests with:
 
 ```bash
 mvn verify
 ```
 
-## CI/CD
+### API and Event Specs
 
-This project includes GitHub Actions workflows for continuous integration and continuous deployment:
+- **OpenAPI Spec**: View the API documentation at `http://localhost:8080/swagger-ui.html` or in the `openapi.yaml` file.
+- **AsyncAPI Spec**: The event-driven architecture is documented in the `asyncapi.yaml` file.
+- **Postman Collection**: A Postman collection is available at `fulfillment-order-management.postman_collection.json` to help you test the API.
 
-- **CI Pipeline**: Automatically builds and tests the application on every push or pull request
-- **CD Staging**: Deploys to staging environment when changes are pushed to the `develop` branch
-- **CD Production**: Deploys to production environment when a new release is published
-- **Security Scanning**: Regular security scans using OWASP Dependency Check and SpotBugs
+### CI/CD
 
-For more details about the workflows, see [.github/README.md](.github/README.md).
+This project uses GitHub Actions for CI/CD:
 
-## Observability
+- **CI Pipeline**: Builds and tests on every push.
+- **CD Staging/Production**: Deploys to the respective environments.
+- **Security Scanning**: Regular security scans with OWASP Dependency Check and SpotBugs.
 
-This service includes comprehensive observability features:
+See [.github/README.md](.github/README.md) for more details.
 
-### Logging
+### Observability
 
-The application uses Logback for logging with structured JSON output in production environments.
-Log files are written to the `logs/` directory with daily rotation.
+- **Logging**: Structured JSON logs are in the `logs/` directory.
+- **Distributed Tracing**: Implemented with Micrometer Tracing.
+- **Metrics**: Prometheus metrics at `http://localhost:8081/actuator/prometheus`.
+- **Health Checks**: Health endpoints at `http://localhost:8081/actuator/health`.
 
-### Distributed Tracing
-
-Distributed tracing is implemented using Micrometer Tracing with Brave.
-Trace context is automatically propagated through HTTP requests.
-
-### Metrics
-
-Application metrics are exposed in Prometheus format at:
-```
-http://localhost:8081/actuator/prometheus
-```
-
-### Health Checks
-
-Health check endpoints are available at:
-```
-http://localhost:8081/actuator/health
-```
-
-For detailed configuration, see [observability-README.md](src/main/resources/observability-README.md).
+For more details, see [observability-README.md](src/main/resources/observability-README.md).
