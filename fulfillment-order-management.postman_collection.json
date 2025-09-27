@@ -26,17 +26,13 @@
 					"raw": "{\n  \"seller_fulfillment_order_id\": \"seller-abc-123\",\n  \"displayable_order_id\": \"cust-po-456\",\n  \"displayable_order_date\": \"2025-09-05T10:00:00Z\",\n  \"displayable_order_comment\": \"Thank you for your order!\",\n  \"shipping_speed_category\": \"STANDARD\",\n  \"destination_address\": {\n    \"name\": \"John Doe\",\n    \"address_line_1\": \"123 Main Street\",\n    \"address_line_2\": \"Apt 4B\",\n    \"city\": \"New York\",\n    \"state_or_region\": \"NY\",\n    \"postal_code\": \"10001\",\n    \"country_code\": \"US\"\n  },\n  \"items\": [\n    {\n      \"seller_sku\": \"item-xyz-789\",\n      \"seller_fulfillment_order_item_id\": \"line-item-1\",\n      \"quantity\": 2,\n      \"gift_message\": \"Happy Birthday!\",\n      \"displayable_comment\": \"Special item\"\n    }\n  ]\n}"
 				},
 				"url": {
-					"raw": "https://api.example.com/fulfillment/order_management/v1/fulfillment_orders",
-					"protocol": "https",
+					"raw": "http://localhost:8080/fulfillment_orders",
+					"protocol": "http",
 					"host": [
-						"api",
-						"example",
-						"com"
+						"localhost"
 					],
+					"port": "8080",
 					"path": [
-						"fulfillment",
-						"order_management",
-						"v1",
 						"fulfillment_orders"
 					]
 				},
@@ -49,17 +45,13 @@
 						"method": "POST",
 						"header": [],
 						"url": {
-							"raw": "https://api.example.com/fulfillment/order_management/v1/fulfillment_orders",
-							"protocol": "https",
+							"raw": "http://localhost:8080/fulfillment_orders",
+							"protocol": "http",
 							"host": [
-								"api",
-								"example",
-								"com"
+								"localhost"
 							],
+							"port": "8080",
 							"path": [
-								"fulfillment",
-								"order_management",
-								"v1",
 								"fulfillment_orders"
 							]
 						}
@@ -82,17 +74,13 @@
 						"method": "POST",
 						"header": [],
 						"url": {
-							"raw": "https://api.example.com/fulfillment/order_management/v1/fulfillment_orders",
-							"protocol": "https",
+							"raw": "http://localhost:8080/fulfillment_orders",
+							"protocol": "http",
 							"host": [
-								"api",
-								"example",
-								"com"
+								"localhost"
 							],
+							"port": "8080",
 							"path": [
-								"fulfillment",
-								"order_management",
-								"v1",
 								"fulfillment_orders"
 							]
 						}
@@ -110,17 +98,13 @@
 						"method": "POST",
 						"header": [],
 						"url": {
-							"raw": "https://api.example.com/fulfillment/order_management/v1/fulfillment_orders",
-							"protocol": "https",
+							"raw": "http://localhost:8080/fulfillment_orders",
+							"protocol": "http",
 							"host": [
-								"api",
-								"example",
-								"com"
+								"localhost"
 							],
+							"port": "8080",
 							"path": [
-								"fulfillment",
-								"order_management",
-								"v1",
 								"fulfillment_orders"
 							]
 						}
@@ -140,17 +124,13 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "https://api.example.com/fulfillment/order_management/v1/fulfillment_orders/{{order_id}}",
-					"protocol": "https",
+					"raw": "http://localhost:8080/fulfillment_orders/{{order_id}}",
+					"protocol": "http",
 					"host": [
-						"api",
-						"example",
-						"com"
+						"localhost"
 					],
+					"port": "8080",
 					"path": [
-						"fulfillment",
-						"order_management",
-						"v1",
 						"fulfillment_orders",
 						"{{order_id}}"
 					]
@@ -227,19 +207,24 @@
 			"name": "Cancel a Fulfillment Order",
 			"request": {
 				"method": "POST",
-				"header": [],
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"cancellation_reason\": \"Customer requested cancellation\"\n}"
+				},
 				"url": {
-					"raw": "https://api.example.com/fulfillment/order_management/v1/fulfillment_orders/{{order_id}}/cancel",
-					"protocol": "https",
+					"raw": "http://localhost:8080/fulfillment_orders/{{order_id}}/cancel",
+					"protocol": "http",
 					"host": [
-						"api",
-						"example",
-						"com"
+						"localhost"
 					],
+					"port": "8080",
 					"path": [
-						"fulfillment",
-						"order_management",
-						"v1",
 						"fulfillment_orders",
 						"{{order_id}}",
 						"cancel"
@@ -347,6 +332,12 @@
 			"value": "550e8400-e29b-41d4-a716-446655440000",
 			"type": "string",
 			"description": "The unique system-generated identifier for the fulfillment order"
+		},
+		{
+			"key": "idempotency_key",
+			"value": "{{$guid}}",
+			"type": "string",
+			"description": "Unique key supplied by the client to make the create call idempotent"
 		}
 	]
 }
