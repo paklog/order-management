@@ -1,7 +1,7 @@
 package com.paklog.ordermanagement.domain.event;
 
 public class FulfillmentOrderCancelledEvent extends FulfillmentOrderEvent {
-    public static final String EVENT_TYPE = "com.example.fulfillment.order.cancelled";
+    public static final String EVENT_TYPE = "com.paklog.fulfillment.order.cancelled";
 
     public FulfillmentOrderCancelledEvent() {
         super();

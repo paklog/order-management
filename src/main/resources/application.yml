@@ -15,7 +15,20 @@ server:
 
 logging:
   level:
-    com.paklog.ordermanagement: DEBUG
+    com.paklog.ordermanagement: INFO
+    com.paklog.ordermanagement.interfaces: INFO
+    com.paklog.ordermanagement.application: INFO
+    com.paklog.ordermanagement.domain: INFO
+    com.paklog.ordermanagement.infrastructure: INFO
+    org.springframework.web: WARN
+    org.springframework.data.mongodb.core.MongoTemplate: INFO
+    org.springframework.data.mongodb.repository: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+    org.mongodb.driver.protocol.command: INFO
+    org.mongodb.driver.connection: WARN
+    org.mongodb.driver.cluster: WARN
+  config: classpath:logback-spring.xml
 
 # See observability-README.md for detailed configuration
 

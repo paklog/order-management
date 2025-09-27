@@ -1,7 +1,7 @@
 package com.paklog.ordermanagement.domain.event;
 
 public class FulfillmentOrderInvalidatedEvent extends FulfillmentOrderEvent {
-    public static final String EVENT_TYPE = "com.example.fulfillment.order.invalidated";
+    public static final String EVENT_TYPE = "com.paklog.fulfillment.order.invalidated";
 
     public FulfillmentOrderInvalidatedEvent() {
         super();

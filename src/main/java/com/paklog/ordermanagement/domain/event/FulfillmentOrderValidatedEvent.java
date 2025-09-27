@@ -3,7 +3,7 @@ package com.paklog.ordermanagement.domain.event;
 import com.paklog.ordermanagement.domain.model.FulfillmentOrder;
 
 public class FulfillmentOrderValidatedEvent extends FulfillmentOrderEvent {
-    public static final String EVENT_TYPE = "com.example.fulfillment.order.validated";
+    public static final String EVENT_TYPE = "com.paklog.fulfillment.order.validated";
 
     public FulfillmentOrderValidatedEvent() {
         super();

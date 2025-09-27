@@ -54,17 +54,22 @@ class EventPublisherServiceTest {
         
         // Mock ObjectMapper to return JSON string
         when(objectMapper.writeValueAsString(any())).thenReturn("{\"orderId\":\"123\"}");
+        
+        // Mock the repository to return a saved event with an ID
+        OutboxEvent mockSavedEvent = new OutboxEvent("test.event", "{\"test\": \"data\"}");
+        mockSavedEvent.setId("test-id-123");
+        when(outboxEventRepository.save(any(OutboxEvent.class))).thenReturn(mockSavedEvent);
 
         // When
         eventPublisherService.publishEvent(event);
 
         // Then
         verify(outboxEventRepository).save(outboxEventCaptor.capture());
-        OutboxEvent savedEvent = outboxEventCaptor.getValue();
-        assertNotNull(savedEvent);
-        assertEquals(event.getType(), savedEvent.getEventType());
-        assertFalse(savedEvent.isPublished());
-        assertNotNull(savedEvent.getCreatedAt());
+        OutboxEvent capturedEvent = outboxEventCaptor.getValue();
+        assertNotNull(capturedEvent);
+        assertEquals(event.getType(), capturedEvent.getEventType());
+        assertFalse(capturedEvent.isPublished());
+        assertNotNull(capturedEvent.getCreatedAt());
     }
 
     @Test

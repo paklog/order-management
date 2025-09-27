@@ -4,12 +4,17 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @Document(collection = "fulfillment_orders")
 public class FulfillmentOrder {
+    
+    private static final Logger logger = LoggerFactory.getLogger(FulfillmentOrder.class);
+    
     @Id
     private UUID orderId;
     private String sellerFulfillmentOrderId;
@@ -57,10 +62,17 @@ public class FulfillmentOrder {
     // Business methods
     public void receive() {
         if (this.status != FulfillmentOrderStatus.NEW) {
+            logger.warn("Invalid state transition attempt - OrderId: {}, CurrentStatus: {}, AttemptedAction: RECEIVE", 
+                    this.orderId, this.status);
             throw new IllegalStateException("Order must be in NEW status to be received");
         }
+        
+        FulfillmentOrderStatus previousStatus = this.status;
         this.status = FulfillmentOrderStatus.RECEIVED;
         this.receivedDate = LocalDateTime.now();
+        
+        logger.info("Order status transition - OrderId: {}, From: {} To: {}", 
+                this.orderId, previousStatus, this.status);
     }
 
     public void validate() {
@@ -79,13 +91,22 @@ public class FulfillmentOrder {
 
     public void cancel(String cancellationReason) {
         if (this.status == FulfillmentOrderStatus.SHIPPED) {
+            logger.warn("Cannot cancel shipped order - OrderId: {}, CurrentStatus: {}, Reason: {}", 
+                    this.orderId, this.status, cancellationReason);
             throw new IllegalStateException("Cannot cancel an order that has already been shipped");
         }
         if (this.status == FulfillmentOrderStatus.CANCELLED) {
+            logger.warn("Order already cancelled - OrderId: {}, ExistingReason: {}, NewReason: {}", 
+                    this.orderId, this.cancellationReason, cancellationReason);
             throw new IllegalStateException("Order is already cancelled");
         }
+        
+        FulfillmentOrderStatus previousStatus = this.status;
         this.status = FulfillmentOrderStatus.CANCELLED;
         this.cancellationReason = cancellationReason;
+        
+        logger.info("Order cancelled - OrderId: {}, From: {} To: {}, Reason: {}", 
+                this.orderId, previousStatus, this.status, cancellationReason);
     }
 
     // Getters and setters
