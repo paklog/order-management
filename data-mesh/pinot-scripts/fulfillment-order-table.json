@@ -1,0 +1,48 @@
+{
+  "tableName": "fulfillmentOrder_REALTIME",
+  "tableType": "REALTIME",
+  "segmentsConfig": {
+    "timeColumnName": "lastUpdatedTimestamp",
+    "timeType": "MILLISECONDS",
+    "retentionTimeUnit": "DAYS",
+    "retentionTimeValue": "365",
+    "segmentPushType": "APPEND",
+    "segmentAssignmentStrategy": "BalanceNumSegmentAssignmentStrategy",
+    "schemaName": "fulfillmentOrder",
+    "replicasPerPartition": "1"
+  },
+  "tenants": {
+    "broker": "DefaultTenant",
+    "server": "DefaultTenant"
+  },
+  "tableIndexConfig": {
+    "loadMode": "MMAP",
+    "invertedIndexColumns": [
+      "orderId",
+      "status",
+      "customerId",
+      "shippingAddress_city",
+      "shippingAddress_country"
+    ],
+    "noDictionaryColumns": [],
+    "onHeapDictionaryColumns": [],
+    "sortedColumn": ["lastUpdatedTimestamp"]
+  },
+  "ingestionConfig": {
+    "streamIngestionConfig": {
+      "streamType": "kafka",
+      "streamConfigMaps": [
+        {
+          "stream.kafka.topic.name": "prod.order-management.fulfillment-orders.v1",
+          "stream.kafka.broker.list": "kafka.prod.svc.cluster.local:9092",
+          "stream.kafka.consumer.type": "lowlevel",
+          "stream.kafka.consumer.prop.auto.offset.reset": "smallest",
+          "stream.kafka.decoder.class.name": "org.apache.pinot.plugin.stream.kafka.format.json.JsonStreamMessageDecoder"
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "customConfigs": {}
+  }
+}

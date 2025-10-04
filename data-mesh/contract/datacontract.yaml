@@ -1,0 +1,93 @@
+# The formal contract for the Fulfillment Order Data Product
+# Specification: https://datacontract.com/
+dataContractSpecification: 0.9.3
+id: urn:paklog:order-management:fulfillment-orders:v1
+info:
+  title: Fulfillment Orders Data Product
+  version: 1.0.0
+  owner: order-management-team
+  contact:
+    name: Paklog Order Management Team
+    email: orders@paklog.com
+  description: >
+    Provides a near real-time, flattened, and queryable view of fulfillment orders
+    for analytical purposes. Includes order status, items, and shipping details.
+
+servers:
+  production:
+    type: pinot
+    host: pinot-broker.prod.svc.cluster.local
+    port: 8099
+    description: Production Apache Pinot cluster for querying order data.
+
+terms:
+  description: >
+    - **Fulfillment Order:** A request to pick, pack, and ship a set of items to a customer.
+    - **SKU:** Stock Keeping Unit, a unique identifier for a product.
+    - **Timestamp:** All timestamps are in UTC (ISO 8601 format).
+
+schema:
+  type: object
+  description: A flattened representation of a fulfillment order.
+  required: [orderId, status, createdTimestamp, lastUpdatedTimestamp, customerId]
+  properties:
+    orderId:
+      type: string
+      description: The unique identifier for the fulfillment order.
+      primary: true
+    status:
+      type: string
+      description: The current status of the fulfillment order.
+      enum: [RECEIVED, VALIDATED, PICKING_COMPLETED, PACKING_COMPLETED, SHIPPED, CANCELLED, INVALIDATED]
+    createdTimestamp:
+      type: string
+      format: date-time
+      description: The timestamp when the order was first created.
+    lastUpdatedTimestamp:
+      type: string
+      format: date-time
+      description: The timestamp of the last update to the order.
+    customerId:
+      type: string
+      description: The identifier for the customer who placed the order.
+    shippingAddress_street:
+      type: string
+      description: Street name and number of the shipping address.
+    shippingAddress_city:
+      type: string
+      description: City of the shipping address.
+    shippingAddress_state:
+      type: string
+      description: State or province of the shipping address.
+    shippingAddress_postalCode:
+      type: string
+      description: Postal code of the shipping address.
+    shippingAddress_country:
+      type: string
+      description: Country of the shipping address.
+    items:
+      type: array
+      description: List of items included in the order.
+      items:
+        type: object
+        required: [sku, quantity, unitPrice]
+        properties:
+          sku:
+            type: string
+            description: The SKU of the item.
+          quantity:
+            type: integer
+            description: The number of units for this item.
+          unitPrice:
+            type: number
+            description: The price of a single unit of the item.
+
+quality:
+  - type: freshness
+    specification:
+      slo: The data must be no more than 5 minutes stale from the operational source.
+      window: 1h
+  - type: completeness
+    specification:
+      slo: At least 99.9% of all shipped orders must be present in the data product within 10 minutes of the "SHIPPED" event.
+      window: 24h

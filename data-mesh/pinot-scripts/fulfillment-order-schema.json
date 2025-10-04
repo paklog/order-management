@@ -1,0 +1,33 @@
+{
+  "schemaName": "fulfillmentOrder",
+  "dimensionFieldSpecs": [
+    { "name": "orderId", "dataType": "STRING" },
+    { "name": "status", "dataType": "STRING" },
+    { "name": "customerId", "dataType": "STRING" },
+    { "name": "shippingAddress_street", "dataType": "STRING" },
+    { "name": "shippingAddress_city", "dataType": "STRING" },
+    { "name": "shippingAddress_state", "dataType": "STRING" },
+    { "name": "shippingAddress_postalCode", "dataType": "STRING" },
+    { "name": "shippingAddress_country", "dataType": "STRING" }
+  ],
+  "multiValueDimensionFieldSpecs": [
+    { "name": "items_sku", "dataType": "STRING" },
+    { "name": "items_quantity", "dataType": "INT" },
+    { "name": "items_unitPrice", "dataType": "DOUBLE" }
+  ],
+  "dateTimeFieldSpecs": [
+    {
+      "name": "createdTimestamp",
+      "dataType": "TIMESTAMP",
+      "format": "1:MILLISECONDS:EPOCH",
+      "granularity": "1:MILLISECONDS"
+    },
+    {
+      "name": "lastUpdatedTimestamp",
+      "dataType": "TIMESTAMP",
+      "format": "1:MILLISECONDS:EPOCH",
+      "granularity": "1:MILLISECONDS"
+    }
+  ],
+  "primaryKeyColumns": ["orderId"]
+}
