@@ -1,129 +1,59 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <!-- Configuration for JSON logging in production -->
-    <springProfile name="prod">
-        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
-                <providers>
-                    <timestamp>
-                        <timeZone>UTC</timeZone>
-                    </timestamp>
-                    <version/>
-                    <logLevel/>
-                    <loggerName/>
-                    <message/>
-                    <mdc/>
-                    <arguments/>
-                    <stackTrace/>
-                    <pattern>
-                        <pattern>
-                            {
-                                "service": "order-management",
-                                "environment": "${ENVIRONMENT:-prod}",
-                                "instance": "${HOSTNAME:-unknown}",
-                                "traceId": "%X{traceId:-}",
-                                "spanId": "%X{spanId:-}",
-                                "userId": "%X{userId:-}",
-                                "correlationId": "%X{correlationId:-}"
-                            }
-                        </pattern>
-                    </pattern>
-                </providers>
-            </encoder>
-        </appender>
-        
-        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <file>logs/application.json</file>
-            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                <fileNamePattern>logs/application.%d{yyyy-MM-dd}.%i.json.gz</fileNamePattern>
-                <maxFileSize>100MB</maxFileSize>
-                <maxHistory>30</maxHistory>
-                <totalSizeCap>3GB</totalSizeCap>
-            </rollingPolicy>
-            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
-                <providers>
-                    <timestamp>
-                        <timeZone>UTC</timeZone>
-                    </timestamp>
-                    <version/>
-                    <logLevel/>
-                    <loggerName/>
-                    <message/>
-                    <mdc/>
-                    <arguments/>
-                    <stackTrace/>
-                    <pattern>
-                        <pattern>
-                            {
-                                "service": "order-management",
-                                "environment": "${ENVIRONMENT:-prod}",
-                                "instance": "${HOSTNAME:-unknown}",
-                                "traceId": "%X{traceId:-}",
-                                "spanId": "%X{spanId:-}",
-                                "userId": "%X{userId:-}",
-                                "correlationId": "%X{correlationId:-}"
-                            }
-                        </pattern>
-                    </pattern>
-                </providers>
-            </encoder>
-        </appender>
-        
-        <root level="INFO">
-            <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="FILE"/>
-        </root>
-    </springProfile>
-    
-    <!-- Configuration for readable logging in development -->
-    <springProfile name="dev,default">
-        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-            <encoder>
-                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n</pattern>
-                <charset>UTF-8</charset>
-            </encoder>
-        </appender>
-        
-        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <file>logs/application.log</file>
-            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-                <fileNamePattern>logs/application.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-                <maxFileSize>100MB</maxFileSize>
-                <maxHistory>30</maxHistory>
-                <totalSizeCap>3GB</totalSizeCap>
-            </rollingPolicy>
-            <encoder>
-                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
-            </encoder>
-        </appender>
-        
-        <root level="INFO">
-            <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="FILE"/>
-        </root>
-    </springProfile>
-    
-    <!-- Logger for our application -->
-    <logger name="com.paklog.ordermanagement" level="DEBUG" additivity="false">
+    <springProperty scope="context" name="serviceName" source="spring.application.name" defaultValue="unknown-service"/>
+    <springProperty scope="context" name="lokiUrl" source="management.loki.url" defaultValue="http://localhost:3100"/>
+
+    <!-- Console Appender with Pattern Layout for readability -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{ISO8601} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- JSON Console Appender for structured logging -->
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeContext>false</includeContext>
+            <includeMdc>true</includeMdc>
+            <includeTags>false</includeTags>
+            <includeCallerData>false</includeCallerData>
+            <customFields>{"service":"${serviceName}"}</customFields>
+        </encoder>
+    </appender>
+
+    <!-- Loki Appender -->
+    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+        <http>
+            <url>${lokiUrl}/loki/api/v1/push</url>
+        </http>
+        <format>
+            <label>
+                <pattern>service=${serviceName},host=${HOSTNAME},level=%level</pattern>
+                <readMarkers>true</readMarkers>
+            </label>
+            <message>
+                <pattern>{"timestamp":"%d{ISO8601}","level":"%level","thread":"%thread","logger":"%logger{36}","message":"%replace(%msg){'\"','\\\\\"'}","trace_id":"%mdc{trace_id:-}","span_id":"%mdc{span_id:-}","trace_flags":"%mdc{trace_flags:-}"}</pattern>
+            </message>
+        </format>
+    </appender>
+
+    <!-- Async wrapper for Loki to avoid blocking -->
+    <appender name="ASYNC_LOKI" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="LOKI"/>
+        <queueSize>1000</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>false</includeCallerData>
+    </appender>
+
+    <!-- Root Logger -->
+    <root level="INFO">
         <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="FILE"/>
-    </logger>
-    
-    <!-- Logger for Spring framework -->
-    <logger name="org.springframework" level="INFO" additivity="false">
-        <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="FILE"/>
-    </logger>
-    
-    <!-- Logger for MongoDB -->
-    <logger name="org.mongodb" level="WARN" additivity="false">
-        <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="FILE"/>
-    </logger>
-    
-    <!-- Logger for Kafka -->
-    <logger name="org.apache.kafka" level="WARN" additivity="false">
-        <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="FILE"/>
-    </logger>
+        <appender-ref ref="ASYNC_LOKI"/>
+    </root>
+
+    <!-- Application specific logging -->
+    <logger name="com.paklog" level="DEBUG"/>
+    <logger name="org.springframework.web" level="DEBUG"/>
+    <logger name="org.springframework.kafka" level="INFO"/>
+    <logger name="org.mongodb" level="INFO"/>
 </configuration>

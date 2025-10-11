@@ -20,6 +20,7 @@
     <properties>
         <java.version>21</java.version>
         <cloudevents.version>2.5.0</cloudevents.version>
+        <loki-logback-appender.version>1.5.1</loki-logback-appender.version>
     </properties>
     
     <dependencies>
@@ -64,17 +65,31 @@
             <artifactId>spring-kafka</artifactId>
         </dependency>
         
-        <!-- Micrometer for Observability -->
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-tracing-bridge-brave</artifactId>
-        </dependency>
-        
+        <!-- Observability Dependencies -->
+        <!-- Prometheus Metrics -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
-        
+
+        <!-- OpenTelemetry Tracing -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+        </dependency>
+
+        <!-- Loki Logging -->
+        <dependency>
+            <groupId>com.github.loki4j</groupId>
+            <artifactId>loki-logback-appender</artifactId>
+            <version>${loki-logback-appender.version}</version>
+        </dependency>
+
         <!-- Logstash Logback Encoder for JSON logging -->
         <dependency>
             <groupId>net.logstash.logback</groupId>
