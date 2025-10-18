@@ -1,0 +1,38 @@
+title: Order Management Service Documentation
+description: Fulfillment order lifecycle management with event-driven architecture
+theme: jekyll-theme-cayman
+baseurl: "/order-management"
+url: "https://paklog.github.io"
+
+# Navigation
+navigation:
+  - title: Home
+    url: /
+  - title: Architecture
+    url: /architecture
+  - title: DDD Components
+    url: /ddd-components
+  - title: Developer Guide
+    url: /developer-guide
+  - title: Diagrams
+    url: /overall-architecture-diagram
+
+# GitHub
+github:
+  repository_url: https://github.com/paklog/order-management
+
+# Build settings
+markdown: kramdown
+plugins:
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: false
+
+# Exclude from processing
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
