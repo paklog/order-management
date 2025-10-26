@@ -56,7 +56,7 @@ class FulfillmentOrderReceivedEventTest {
 
     @Test
     void testEventTypeConstant() {
-        assertEquals("com.example.fulfillment.order.received", FulfillmentOrderReceivedEvent.EVENT_TYPE);
+        assertEquals("com.paklog.fulfillment.order.received", FulfillmentOrderReceivedEvent.EVENT_TYPE);
     }
 
     @Test

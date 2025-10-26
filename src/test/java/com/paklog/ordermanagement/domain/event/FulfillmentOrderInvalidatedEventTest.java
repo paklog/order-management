@@ -33,7 +33,7 @@ class FulfillmentOrderInvalidatedEventTest {
 
     @Test
     void testEventTypeConstant() {
-        assertEquals("com.example.fulfillment.order.invalidated", FulfillmentOrderInvalidatedEvent.EVENT_TYPE);
+        assertEquals("com.paklog.fulfillment.order.invalidated", FulfillmentOrderInvalidatedEvent.EVENT_TYPE);
     }
 
     @Test

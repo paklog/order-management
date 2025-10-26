@@ -56,7 +56,7 @@ class FulfillmentOrderCancelledEventTest {
 
     @Test
     void testEventTypeConstant() {
-        assertEquals("com.example.fulfillment.order.cancelled", FulfillmentOrderCancelledEvent.EVENT_TYPE);
+        assertEquals("com.paklog.fulfillment.order.cancelled", FulfillmentOrderCancelledEvent.EVENT_TYPE);
     }
 
     @Test
