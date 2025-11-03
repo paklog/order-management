@@ -3,16 +3,43 @@ package com.paklog.ordermanagement.interfaces.dto;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
+import jakarta.validation.constraints.Size;
+
 import com.paklog.ordermanagement.domain.model.Address;
 import com.paklog.ordermanagement.domain.model.OrderItem;
 
 public class CreateFulfillmentOrderRequest {
+
+    @NotBlank(message = "Seller fulfillment order ID is required")
+    @Size(max = 255, message = "Seller fulfillment order ID must not exceed 255 characters")
     private String sellerFulfillmentOrderId;
+
+    @NotBlank(message = "Displayable order ID is required")
+    @Size(max = 255, message = "Displayable order ID must not exceed 255 characters")
     private String displayableOrderId;
+
+    @NotNull(message = "Displayable order date is required")
+    @PastOrPresent(message = "Order date cannot be in the future")
     private LocalDateTime displayableOrderDate;
+
+    @Size(max = 500, message = "Displayable order comment must not exceed 500 characters")
     private String displayableOrderComment;
+
+    @NotBlank(message = "Shipping speed category is required")
     private String shippingSpeedCategory;
+
+    @NotNull(message = "Destination address is required")
+    @Valid
     private Address destinationAddress;
+
+    @NotEmpty(message = "Order must have at least one item")
+    @Size(max = 100, message = "Maximum 100 items per order")
+    @Valid
     private List<OrderItem> items;
 
     // Getters and setters

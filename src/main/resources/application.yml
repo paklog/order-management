@@ -15,6 +15,83 @@ spring:
 server:
   port: 8080
 
+# Order Management Validation Configuration
+order-management:
+  validation:
+    max-total-quantity: 100000
+    max-items-per-order: 100
+    min-order-value: 0.01
+    max-order-value: 1000000.00
+    check-inventory-availability: false  # Set to true to enable inventory checks
+    check-product-catalog: false         # Set to true to enable product catalog validation
+    reject-duplicate-skus: true
+    enable-order-value-validation: false # Set to true to enable order value validation
+    duplicate-detection-window-hours: 24 # Time window for fuzzy duplicate detection
+
+  # External Service Integration
+  integration:
+    inventory-service:
+      url: http://localhost:8085/inventory
+    product-catalog-service:
+      url: http://localhost:8082
+
+# Resilience4j Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        # Circuit breaker opens when 50% of calls fail
+        failure-rate-threshold: 50
+        # Circuit breaker opens when 50% of calls are slow
+        slow-call-rate-threshold: 50
+        # Calls taking longer than 3s are considered slow
+        slow-call-duration-threshold: 3s
+        # Evaluate last 10 calls
+        sliding-window-size: 10
+        # Use count-based sliding window
+        sliding-window-type: COUNT_BASED
+        # Minimum 5 calls required before evaluating failure rate
+        minimum-number-of-calls: 5
+        # Circuit stays open for 30s before attempting recovery
+        wait-duration-in-open-state: 30s
+        # Allow 3 test calls in half-open state
+        permitted-number-of-calls-in-half-open-state: 3
+        # Automatically transition from open to half-open
+        automatic-transition-from-open-to-half-open-enabled: true
+        # Record all exceptions
+        record-exceptions:
+          - java.lang.Exception
+    instances:
+      # Product Catalog Service circuit breaker
+      productCatalog:
+        base-config: default
+        register-health-indicator: true
+      # Inventory Service circuit breaker
+      inventory:
+        base-config: default
+        register-health-indicator: true
+
+  retry:
+    configs:
+      default:
+        # Retry up to 3 times
+        max-attempts: 3
+        # Wait 1s between retries
+        wait-duration: 1s
+        # Exponential backoff multiplier
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        # Retry on exceptions
+        retry-exceptions:
+          - org.springframework.web.client.RestClientException
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+    instances:
+      productCatalog:
+        base-config: default
+      inventory:
+        base-config: default
+
 logging:
   level:
     com.paklog.ordermanagement: INFO

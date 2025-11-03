@@ -4,10 +4,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,42 +20,57 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.paklog.ordermanagement.application.service.EventPublisherService;
 import com.paklog.ordermanagement.application.service.FulfillmentOrderService;
+import com.paklog.ordermanagement.domain.event.FulfillmentOrderValidatedEvent;
 import com.paklog.ordermanagement.domain.model.FulfillmentOrder;
+import com.paklog.ordermanagement.domain.service.OrderValidationService;
 import com.paklog.ordermanagement.interfaces.dto.CancelFulfillmentOrderRequest;
 import com.paklog.ordermanagement.interfaces.dto.CreateFulfillmentOrderRequest;
 import com.paklog.ordermanagement.interfaces.dto.FulfillmentOrderDto;
 
 @RestController
 @RequestMapping("/fulfillment_orders")
+@Validated
 public class FulfillmentOrderController {
 
     private static final Logger logger = LoggerFactory.getLogger(FulfillmentOrderController.class);
 
     private final FulfillmentOrderService fulfillmentOrderService;
+    private final OrderValidationService orderValidationService;
+    private final EventPublisherService eventPublisherService;
 
-    public FulfillmentOrderController(FulfillmentOrderService fulfillmentOrderService) {
+    public FulfillmentOrderController(FulfillmentOrderService fulfillmentOrderService,
+                                     OrderValidationService orderValidationService,
+                                     EventPublisherService eventPublisherService) {
         this.fulfillmentOrderService = fulfillmentOrderService;
+        this.orderValidationService = orderValidationService;
+        this.eventPublisherService = eventPublisherService;
     }
 
     @PostMapping
     public ResponseEntity<FulfillmentOrderDto> createFulfillmentOrder(
-            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
-            @RequestBody CreateFulfillmentOrderRequest request) {
+            @RequestHeader(value = "Idempotency-Key") @NotBlank(message = "Idempotency-Key header is required") String idempotencyKey,
+            @Valid @RequestBody CreateFulfillmentOrderRequest request) {
         Instant startTime = Instant.now();
         logger.info("Creating new fulfillment order - SellerOrderId: {}, ItemCount: {}",
                 request.getSellerFulfillmentOrderId(),
                 request.getItems() != null ? request.getItems().size() : 0);
 
         try {
-            if (idempotencyKey == null || idempotencyKey.isBlank()) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-            }
             // Convert request to domain model
             FulfillmentOrder order = convertToDomain(request, idempotencyKey);
             logger.debug("Converted request to domain model - OrderId: {}", order.getOrderId());
 
-            // Create the order
+            // Validate and prepare order
+            if (!validateOrder(order)) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            }
+
+            // Publish validation success event
+            publishValidationEvent(order);
+
+            // Create and persist the order
             FulfillmentOrder createdOrder = fulfillmentOrderService.createOrder(order);
             logger.info("Successfully created fulfillment order - OrderId: {}, Status: {}",
                     createdOrder.getOrderId(), createdOrder.getStatus());
@@ -59,24 +78,88 @@ public class FulfillmentOrderController {
             // Convert to DTO and return
             FulfillmentOrderDto dto = convertToDto(createdOrder);
 
-            Duration duration = Duration.between(startTime, Instant.now());
-            logger.info("Create fulfillment order completed - OrderId: {}, Duration: {}ms",
-                    createdOrder.getOrderId(), duration.toMillis());
+            logCompletionMetrics(startTime, createdOrder.getOrderId());
 
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(dto);
 
         } catch (IllegalStateException e) {
-            Duration duration = Duration.between(startTime, Instant.now());
-            logger.warn("Conflict creating fulfillment order - SellerOrderId: {}, Error: {}, Duration: {}ms",
-                    request.getSellerFulfillmentOrderId(), e.getMessage(), duration.toMillis());
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            return handleConflictError(request, startTime, e);
 
         } catch (Exception e) {
-            Duration duration = Duration.between(startTime, Instant.now());
-            logger.error("Failed to create fulfillment order - SellerOrderId: {}, Error: {}, Duration: {}ms",
-                    request.getSellerFulfillmentOrderId(), e.getMessage(), duration.toMillis(), e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            return handleGeneralError(request, startTime, e);
         }
+    }
+
+    /**
+     * Validates the order against business rules.
+     *
+     * @param order the order to validate
+     * @return true if validation passes, false otherwise
+     */
+    private boolean validateOrder(FulfillmentOrder order) {
+        OrderValidationService.ValidationResult validationResult = orderValidationService.validate(order);
+        if (!validationResult.isValid()) {
+            logger.warn("Order validation failed - OrderId: {}, Errors: {}",
+                order.getOrderId(), validationResult.getErrors());
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Publishes validation success event.
+     *
+     * @param order the validated order
+     */
+    private void publishValidationEvent(FulfillmentOrder order) {
+        logger.debug("Publishing FulfillmentOrderValidatedEvent - OrderId: {}", order.getOrderId());
+        FulfillmentOrderValidatedEvent validatedEvent = new FulfillmentOrderValidatedEvent(order);
+        eventPublisherService.publishEvent(validatedEvent);
+        logger.info("Order validation successful - OrderId: {}", order.getOrderId());
+    }
+
+    /**
+     * Logs completion metrics.
+     *
+     * @param startTime when the operation started
+     * @param orderId the order ID
+     */
+    private void logCompletionMetrics(Instant startTime, UUID orderId) {
+        Duration duration = Duration.between(startTime, Instant.now());
+        logger.info("Create fulfillment order completed - OrderId: {}, Duration: {}ms",
+                orderId, duration.toMillis());
+    }
+
+    /**
+     * Handles conflict errors (duplicate orders).
+     *
+     * @param request the original request
+     * @param startTime when the operation started
+     * @param e the exception
+     * @return HTTP 409 Conflict response
+     */
+    private ResponseEntity<FulfillmentOrderDto> handleConflictError(
+            CreateFulfillmentOrderRequest request, Instant startTime, IllegalStateException e) {
+        Duration duration = Duration.between(startTime, Instant.now());
+        logger.warn("Conflict creating fulfillment order - SellerOrderId: {}, Error: {}, Duration: {}ms",
+                request.getSellerFulfillmentOrderId(), e.getMessage(), duration.toMillis());
+        return ResponseEntity.status(HttpStatus.CONFLICT).build();
+    }
+
+    /**
+     * Handles general errors.
+     *
+     * @param request the original request
+     * @param startTime when the operation started
+     * @param e the exception
+     * @return HTTP 400 Bad Request response
+     */
+    private ResponseEntity<FulfillmentOrderDto> handleGeneralError(
+            CreateFulfillmentOrderRequest request, Instant startTime, Exception e) {
+        Duration duration = Duration.between(startTime, Instant.now());
+        logger.error("Failed to create fulfillment order - SellerOrderId: {}, Error: {}, Duration: {}ms",
+                request.getSellerFulfillmentOrderId(), e.getMessage(), duration.toMillis(), e);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
     }
 
     @GetMapping("/{order_id}")

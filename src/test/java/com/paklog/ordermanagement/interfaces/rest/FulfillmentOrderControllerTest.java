@@ -23,10 +23,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.paklog.ordermanagement.application.service.EventPublisherService;
 import com.paklog.ordermanagement.application.service.FulfillmentOrderService;
 import com.paklog.ordermanagement.domain.model.Address;
 import com.paklog.ordermanagement.domain.model.FulfillmentOrder;
 import com.paklog.ordermanagement.domain.model.OrderItem;
+import com.paklog.ordermanagement.domain.service.OrderValidationService;
 import com.paklog.ordermanagement.interfaces.dto.CancelFulfillmentOrderRequest;
 import com.paklog.ordermanagement.interfaces.dto.CreateFulfillmentOrderRequest;
 import com.paklog.ordermanagement.interfaces.dto.FulfillmentOrderDto;
@@ -44,6 +46,12 @@ class FulfillmentOrderControllerTest {
     @MockBean
     private FulfillmentOrderService fulfillmentOrderService;
 
+    @MockBean
+    private OrderValidationService orderValidationService;
+
+    @MockBean
+    private EventPublisherService eventPublisherService;
+
     private FulfillmentOrder testOrder;
     private FulfillmentOrderDto testOrderDto;
 
@@ -51,6 +59,10 @@ class FulfillmentOrderControllerTest {
     void setUp() {
         testOrder = createTestOrder();
         testOrderDto = convertToDto(testOrder);
+
+        // Mock validation service to return success by default
+        when(orderValidationService.validate(any(FulfillmentOrder.class)))
+            .thenReturn(OrderValidationService.ValidationResult.success());
     }
 
     @Test

@@ -23,7 +23,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n  \"seller_fulfillment_order_id\": \"seller-abc-123\",\n  \"displayable_order_id\": \"cust-po-456\",\n  \"displayable_order_date\": \"2025-09-05T10:00:00Z\",\n  \"displayable_order_comment\": \"Thank you for your order!\",\n  \"shipping_speed_category\": \"STANDARD\",\n  \"destination_address\": {\n    \"name\": \"John Doe\",\n    \"address_line_1\": \"123 Main Street\",\n    \"address_line_2\": \"Apt 4B\",\n    \"city\": \"New York\",\n    \"state_or_region\": \"NY\",\n    \"postal_code\": \"10001\",\n    \"country_code\": \"US\"\n  },\n  \"items\": [\n    {\n      \"seller_sku\": \"item-xyz-789\",\n      \"seller_fulfillment_order_item_id\": \"line-item-1\",\n      \"quantity\": 2,\n      \"gift_message\": \"Happy Birthday!\",\n      \"displayable_comment\": \"Special item\"\n    }\n  ]\n}"
+					"raw": "{\n  \"seller_fulfillment_order_id\": \"seller-{{$guid}}\",\n  \"displayable_order_id\": \"cust-{{$randomAlphaNumeric}}\",\n  \"displayable_order_date\": \"{{$isoTimestamp}}\",\n  \"displayable_order_comment\": \"{{$randomCatchPhrase}}\",\n  \"shipping_speed_category\": \"STANDARD\",\n  \"destination_address\": {\n    \"name\": \"{{$randomFullName}}\",\n    \"address_line_1\": \"{{$randomStreetAddress}}\",\n    \"address_line_2\": \"Unit {{$randomInt}}\",\n    \"city\": \"{{$randomCity}}\",\n    \"state_or_region\": \"{{$randomState}}\",\n    \"postal_code\": \"{{$randomZipCode}}\",\n    \"country_code\": \"{{$randomCountryCode}}\"\n  },\n  \"items\": [\n    {\n      \"seller_sku\": \"{{seller_sku}}\",\n      \"seller_fulfillment_order_item_id\": \"line-item-{{$guid}}\",\n      \"quantity\": 2,\n      \"gift_message\": \"{{$randomCatchPhrase}}\",\n      \"displayable_comment\": \"{{$randomLoremSentence}}\"\n    }\n  ]\n}"
 				},
 				"url": {
 					"raw": "http://localhost:8080/fulfillment_orders",
@@ -66,7 +66,7 @@
 						}
 					],
 					"cookie": [],
-					"body": "{\n  \"order_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"seller_fulfillment_order_id\": \"seller-abc-123\",\n  \"displayable_order_id\": \"cust-po-456\",\n  \"displayable_order_date\": \"2025-09-05T10:00:00Z\",\n  \"displayable_order_comment\": \"Thank you for your order!\",\n  \"shipping_speed_category\": \"STANDARD\",\n  \"destination_address\": {\n    \"name\": \"John Doe\",\n    \"address_line_1\": \"123 Main Street\",\n    \"address_line_2\": \"Apt 4B\",\n    \"city\": \"New York\",\n    \"state_or_region\": \"NY\",\n    \"postal_code\": \"10001\",\n    \"country_code\": \"US\"\n  },\n  \"status\": \"RECEIVED\",\n  \"items\": [\n    {\n      \"seller_sku\": \"item-xyz-789\",\n      \"seller_fulfillment_order_item_id\": \"line-item-1\",\n      \"quantity\": 2,\n      \"gift_message\": \"Happy Birthday!\",\n      \"displayable_comment\": \"Special item\"\n    }\n  ],\n  \"received_date\": \"2025-09-05T10:00:00Z\"\n}"
+					"body": "{\n  \"order_id\": \"{{$guid}}\",\n  \"seller_fulfillment_order_id\": \"seller-{{$guid}}\",\n  \"displayable_order_id\": \"cust-{{$randomAlphaNumeric}}\",\n  \"displayable_order_date\": \"{{$isoTimestamp}}\",\n  \"displayable_order_comment\": \"{{$randomCatchPhrase}}\",\n  \"shipping_speed_category\": \"STANDARD\",\n  \"destination_address\": {\n    \"name\": \"{{$randomFullName}}\",\n    \"address_line_1\": \"{{$randomStreetAddress}}\",\n    \"address_line_2\": \"Unit {{$randomInt}}\",\n    \"city\": \"{{$randomCity}}\",\n    \"state_or_region\": \"{{$randomState}}\",\n    \"postal_code\": \"{{$randomZipCode}}\",\n    \"country_code\": \"{{$randomCountryCode}}\"\n  },\n  \"status\": \"RECEIVED\",\n  \"items\": [\n    {\n      \"seller_sku\": \"{{seller_sku}}\",\n      \"seller_fulfillment_order_item_id\": \"line-item-{{$guid}}\",\n      \"quantity\": 2,\n      \"gift_message\": \"{{$randomCatchPhrase}}\",\n      \"displayable_comment\": \"{{$randomLoremSentence}}\"\n    }\n  ],\n  \"received_date\": \"{{$isoTimestamp}}\"\n}"
 				},
 				{
 					"name": "Bad Request",
@@ -170,7 +170,7 @@
 						}
 					],
 					"cookie": [],
-					"body": "{\n  \"order_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"seller_fulfillment_order_id\": \"seller-abc-123\",\n  \"displayable_order_id\": \"cust-po-456\",\n  \"displayable_order_date\": \"2025-09-05T10:00:00Z\",\n  \"displayable_order_comment\": \"Thank you for your order!\",\n  \"shipping_speed_category\": \"STANDARD\",\n  \"destination_address\": {\n    \"name\": \"John Doe\",\n    \"address_line_1\": \"123 Main Street\",\n    \"address_line_2\": \"Apt 4B\",\n    \"city\": \"New York\",\n    \"state_or_region\": \"NY\",\n    \"postal_code\": \"10001\",\n    \"country_code\": \"US\"\n  },\n  \"status\": \"RECEIVED\",\n  \"items\": [\n    {\n      \"seller_sku\": \"item-xyz-789\",\n      \"seller_fulfillment_order_item_id\": \"line-item-1\",\n      \"quantity\": 2,\n      \"gift_message\": \"Happy Birthday!\",\n      \"displayable_comment\": \"Special item\"\n    }\n  ],\n  \"received_date\": \"2025-09-05T10:00:00Z\"\n}"
+					"body": "{\n  \"order_id\": \"{{$guid}}\",\n  \"seller_fulfillment_order_id\": \"seller-{{$guid}}\",\n  \"displayable_order_id\": \"cust-{{$randomAlphaNumeric}}\",\n  \"displayable_order_date\": \"{{$isoTimestamp}}\",\n  \"displayable_order_comment\": \"{{$randomCatchPhrase}}\",\n  \"shipping_speed_category\": \"STANDARD\",\n  \"destination_address\": {\n    \"name\": \"{{$randomFullName}}\",\n    \"address_line_1\": \"{{$randomStreetAddress}}\",\n    \"address_line_2\": \"Unit {{$randomInt}}\",\n    \"city\": \"{{$randomCity}}\",\n    \"state_or_region\": \"{{$randomState}}\",\n    \"postal_code\": \"{{$randomZipCode}}\",\n    \"country_code\": \"{{$randomCountryCode}}\"\n  },\n  \"status\": \"RECEIVED\",\n  \"items\": [\n    {\n      \"seller_sku\": \"{{seller_sku}}\",\n      \"seller_fulfillment_order_item_id\": \"line-item-{{$guid}}\",\n      \"quantity\": 2,\n      \"gift_message\": \"{{$randomCatchPhrase}}\",\n      \"displayable_comment\": \"{{$randomLoremSentence}}\"\n    }\n  ],\n  \"received_date\": \"{{$isoTimestamp}}\"\n}"
 				},
 				{
 					"name": "Not Found",
@@ -338,6 +338,12 @@
 			"value": "{{$guid}}",
 			"type": "string",
 			"description": "Unique key supplied by the client to make the create call idempotent"
+		},
+		{
+			"key": "seller_sku",
+			"value": "BOOK-PB-001",
+			"type": "string",
+			"description": "SKU of a catalog product to use when creating fulfillment orders; update to any valid SKU from the product catalog."
 		}
 	]
 }
