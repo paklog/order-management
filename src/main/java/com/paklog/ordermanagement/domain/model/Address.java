@@ -6,35 +6,46 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
+
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class Address {
 
     @NotBlank(message = "Recipient name is required")
     @Size(max = 255, message = "Name must not exceed 255 characters")
+    @com.fasterxml.jackson.annotation.JsonProperty("name")
     private String name;
 
     @NotBlank(message = "Address line 1 is required")
     @Size(max = 255, message = "Address line 1 must not exceed 255 characters")
+    @com.fasterxml.jackson.annotation.JsonProperty("address_line_1")
     private String addressLine1;
 
     @Size(max = 255, message = "Address line 2 must not exceed 255 characters")
+    @com.fasterxml.jackson.annotation.JsonProperty("address_line_2")
     private String addressLine2;
 
     @NotBlank(message = "City is required")
     @Size(max = 100, message = "City must not exceed 100 characters")
+    @com.fasterxml.jackson.annotation.JsonProperty("city")
     private String city;
 
     @NotBlank(message = "State or region is required")
     @Size(max = 100, message = "State or region must not exceed 100 characters")
+    @com.fasterxml.jackson.annotation.JsonProperty("state_or_region")
     private String stateOrRegion;
 
     @NotBlank(message = "Postal code is required")
     @Size(max = 20, message = "Postal code must not exceed 20 characters")
     @Pattern(regexp = "^[A-Za-z0-9\\s-]+$", message = "Postal code contains invalid characters")
+    @com.fasterxml.jackson.annotation.JsonProperty("postal_code")
     private String postalCode;
 
     @NotBlank(message = "Country code is required")
     @Size(min = 2, max = 2, message = "Country code must be exactly 2 characters")
     @Pattern(regexp = "^[A-Z]{2}$", message = "Country code must be a valid ISO 3166-1 alpha-2 code (uppercase)")
+    @com.fasterxml.jackson.annotation.JsonProperty("country_code")
     private String countryCode;
 
     public Address() {
