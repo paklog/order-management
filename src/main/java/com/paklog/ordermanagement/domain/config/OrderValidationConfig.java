@@ -34,11 +34,6 @@ public class OrderValidationConfig {
     private BigDecimal maxOrderValue = BigDecimal.valueOf(1000000.00);
 
     /**
-     * Enable inventory availability check
-     */
-    private boolean checkInventoryAvailability = false;
-
-    /**
      * Enable product catalog validation
      */
     private boolean checkProductCatalog = false;
@@ -93,14 +88,6 @@ public class OrderValidationConfig {
         this.maxOrderValue = maxOrderValue;
     }
 
-    public boolean isCheckInventoryAvailability() {
-        return checkInventoryAvailability;
-    }
-
-    public void setCheckInventoryAvailability(boolean checkInventoryAvailability) {
-        this.checkInventoryAvailability = checkInventoryAvailability;
-    }
-
     public boolean isCheckProductCatalog() {
         return checkProductCatalog;
     }
@@ -132,4 +119,8 @@ public class OrderValidationConfig {
     public void setDuplicateDetectionWindowHours(int duplicateDetectionWindowHours) {
         this.duplicateDetectionWindowHours = duplicateDetectionWindowHours;
     }
+
+    // Removed: checkInventoryAvailability - inventory check is now always performed,
+    // but order acceptance is controlled by fulfillment policy
 }
+

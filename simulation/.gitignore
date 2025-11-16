@@ -1,0 +1,9 @@
+# Ignore generated data and results
+data/products.json
+results/*.json
+results/*.log
+results/*.html
+
+# Keep directory structure
+!results/.gitkeep
+!data/.gitkeep

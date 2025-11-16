@@ -5,7 +5,9 @@ import java.util.List;
 import java.util.UUID;
 
 import com.paklog.ordermanagement.domain.model.Address;
+import com.paklog.ordermanagement.domain.model.FulfillmentAction;
 import com.paklog.ordermanagement.domain.model.FulfillmentOrderStatus;
+import com.paklog.ordermanagement.domain.model.FulfillmentPolicy;
 import com.paklog.ordermanagement.domain.model.OrderItem;
 
 public class FulfillmentOrderDto {
@@ -20,6 +22,9 @@ public class FulfillmentOrderDto {
     private List<OrderItem> items;
     private LocalDateTime receivedDate;
     private String cancellationReason;
+    private FulfillmentPolicy fulfillmentPolicy;
+    private FulfillmentAction fulfillmentAction;
+    // Note: unfulfillableItems are communicated asynchronously via domain events
 
     // Getters and setters
     public UUID getOrderId() {
@@ -108,5 +113,21 @@ public class FulfillmentOrderDto {
 
     public void setCancellationReason(String cancellationReason) {
         this.cancellationReason = cancellationReason;
+    }
+
+    public FulfillmentPolicy getFulfillmentPolicy() {
+        return fulfillmentPolicy;
+    }
+
+    public void setFulfillmentPolicy(FulfillmentPolicy fulfillmentPolicy) {
+        this.fulfillmentPolicy = fulfillmentPolicy;
+    }
+
+    public FulfillmentAction getFulfillmentAction() {
+        return fulfillmentAction;
+    }
+
+    public void setFulfillmentAction(FulfillmentAction fulfillmentAction) {
+        this.fulfillmentAction = fulfillmentAction;
     }
 }

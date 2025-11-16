@@ -25,6 +25,7 @@ import com.paklog.ordermanagement.application.service.EventPublisherService;
 import com.paklog.ordermanagement.application.service.FulfillmentOrderService;
 import com.paklog.ordermanagement.domain.model.Address;
 import com.paklog.ordermanagement.domain.model.FulfillmentOrder;
+import com.paklog.ordermanagement.domain.model.FulfillmentPolicy;
 import com.paklog.ordermanagement.domain.model.OrderItem;
 import com.paklog.ordermanagement.domain.service.OrderValidationService;
 import com.paklog.ordermanagement.interfaces.dto.CreateFulfillmentOrderRequest;
@@ -240,6 +241,8 @@ class FulfillmentOrderControllerValidationTest {
 
         when(orderValidationService.validate(any()))
             .thenReturn(OrderValidationService.ValidationResult.success());
+        when(orderValidationService.checkInventoryAvailability(any()))
+            .thenReturn(OrderValidationService.InventoryAvailabilityResult.allAvailable());
         when(fulfillmentOrderService.createOrder(any())).thenReturn(createdOrder);
 
         // When & Then
@@ -263,6 +266,7 @@ class FulfillmentOrderControllerValidationTest {
         request.setShippingSpeedCategory("STANDARD");
         request.setDestinationAddress(createValidAddress());
         request.setItems(createValidItems());
+        request.setFulfillmentPolicy(FulfillmentPolicy.FILL_ALL_AVAILABLE);
         return request;
     }
 

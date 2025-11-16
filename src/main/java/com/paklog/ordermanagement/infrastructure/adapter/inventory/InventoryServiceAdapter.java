@@ -8,7 +8,6 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
@@ -23,10 +22,9 @@ import io.github.resilience4j.retry.annotation.Retry;
  * Adapter implementation for Inventory Service integration.
  * Implements the InventoryServicePort using REST API calls.
  *
- * This adapter is only enabled when inventory checks are configured.
+ * This adapter is always enabled to support partial fulfillment policy decisions.
  */
 @Component
-@ConditionalOnProperty(name = "order-management.validation.check-inventory-availability", havingValue = "true")
 public class InventoryServiceAdapter implements InventoryServicePort {
 
     private static final Logger logger = LoggerFactory.getLogger(InventoryServiceAdapter.class);

@@ -23,6 +23,8 @@ channels:
           - $ref: '#/components/messages/FulfillmentOrderValidated'
           - $ref: '#/components/messages/FulfillmentOrderInvalidated'
           - $ref: '#/components/messages/FulfillmentOrderCancelled'
+          - $ref: '#/components/messages/FulfillmentOrderPartiallyAccepted'
+          - $ref: '#/components/messages/FulfillmentOrderStockUnavailable'
 
 components:
   messages:
@@ -58,6 +60,22 @@ components:
       payload:
         $ref: "#/components/schemas/FulfillmentOrderCancelledCloudEvent"
 
+    FulfillmentOrderPartiallyAccepted:
+      name: fulfillment_order_partially_accepted
+      title: Fulfillment Order Partially Accepted
+      summary: Published when an order is accepted with partial fulfillment due to inventory constraints.
+      contentType: application/cloudevents+json
+      payload:
+        $ref: "#/components/schemas/FulfillmentOrderPartiallyAcceptedCloudEvent"
+
+    FulfillmentOrderStockUnavailable:
+      name: fulfillment_order_stock_unavailable
+      title: Fulfillment Order Stock Unavailable
+      summary: Published when an order has stock unavailable for some or all items.
+      contentType: application/cloudevents+json
+      payload:
+        $ref: "#/components/schemas/FulfillmentOrderStockUnavailableCloudEvent"
+
   schemas:
     # --- Explicit CloudEvent Definitions ---
 
@@ -70,7 +88,7 @@ components:
           enum: ["1.0"]
         type:
           type: string
-          enum: ["com.example.fulfillment.order.received"]
+          enum: ["com.paklog.fulfillment.order.received"]
         source:
           type: string
           format: uri-reference
@@ -99,7 +117,7 @@ components:
           enum: ["1.0"]
         type:
           type: string
-          enum: ["com.example.fulfillment.order.validated"]
+          enum: ["com.paklog.fulfillment.order.validated"]
         source:
           type: string
           format: uri-reference
@@ -127,7 +145,7 @@ components:
           enum: ["1.0"]
         type:
           type: string
-          enum: ["com.example.fulfillment.order.invalidated"]
+          enum: ["com.paklog.fulfillment.order.invalidated"]
         source:
           type: string
           format: uri-reference
@@ -155,7 +173,7 @@ components:
           enum: ["1.0"]
         type:
           type: string
-          enum: ["com.example.fulfillment.order.cancelled"]
+          enum: ["com.paklog.fulfillment.order.cancelled"]
         source:
           type: string
           format: uri-reference
@@ -173,6 +191,64 @@ components:
           enum: ["application/json"]
         data:
           $ref: '#/components/schemas/FulfillmentOrderCancelledData'
+
+    FulfillmentOrderPartiallyAcceptedCloudEvent:
+      type: object
+      required: [specversion, type, source, id, time, data]
+      properties:
+        specversion:
+          type: string
+          enum: ["1.0"]
+        type:
+          type: string
+          enum: ["com.paklog.fulfillment.order.partially_accepted"]
+        source:
+          type: string
+          format: uri-reference
+          example: "/fulfillment/order-management-service"
+        subject:
+          type: string
+          description: The order_id of the fulfillment order.
+        id:
+          type: string
+          format: uuid
+        time:
+          type: string
+          format: date-time
+        datacontenttype:
+          type: string
+          enum: ["application/json"]
+        data:
+          $ref: '#/components/schemas/FulfillmentOrderPartiallyAcceptedData'
+
+    FulfillmentOrderStockUnavailableCloudEvent:
+      type: object
+      required: [specversion, type, source, id, time, data]
+      properties:
+        specversion:
+          type: string
+          enum: ["1.0"]
+        type:
+          type: string
+          enum: ["com.paklog.fulfillment.order.stock_unavailable"]
+        source:
+          type: string
+          format: uri-reference
+          example: "/fulfillment/order-management-service"
+        subject:
+          type: string
+          description: The order_id of the fulfillment order.
+        id:
+          type: string
+          format: uuid
+        time:
+          type: string
+          format: date-time
+        datacontenttype:
+          type: string
+          enum: ["application/json"]
+        data:
+          $ref: '#/components/schemas/FulfillmentOrderStockUnavailableData'
 
     # --- Domain-Specific Data Payloads ---
 
@@ -209,6 +285,54 @@ components:
           type: string
           example: "Cancelled at seller's request."
 
+    FulfillmentOrderPartiallyAcceptedData:
+      type: object
+      required: [order, unfulfillable_items, total_items_requested, items_fulfillable, items_unfulfillable, summary]
+      properties:
+        order:
+          $ref: '#/components/schemas/FulfillmentOrder'
+        unfulfillable_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnfulfillableItem'
+        total_items_requested:
+          type: integer
+          description: Total number of items requested in the order.
+        items_fulfillable:
+          type: integer
+          description: Number of items that can be fulfilled.
+        items_unfulfillable:
+          type: integer
+          description: Number of items that cannot be fulfilled.
+        summary:
+          type: string
+          description: Human-readable summary of the partial fulfillment.
+          example: "Order abc-123 partially accepted: 3 of 5 items can be fulfilled"
+
+    FulfillmentOrderStockUnavailableData:
+      type: object
+      required: [order, unavailable_items, total_items_requested, items_unavailable, total_quantity_shortfall, summary]
+      properties:
+        order:
+          $ref: '#/components/schemas/FulfillmentOrder'
+        unavailable_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnfulfillableItem'
+        total_items_requested:
+          type: integer
+          description: Total number of items requested in the order.
+        items_unavailable:
+          type: integer
+          description: Number of items with insufficient stock.
+        total_quantity_shortfall:
+          type: integer
+          description: Total quantity shortage across all unavailable items.
+        summary:
+          type: string
+          description: Human-readable summary of the stock shortage.
+          example: "Order abc-123 accepted with stock shortage: 2 of 5 items unavailable, total shortfall: 15 units"
+
     # --- Reusable Domain Model Schemas ---
 
     FulfillmentOrder:
@@ -239,6 +363,61 @@ components:
         received_date:
           type: string
           format: date-time
+        fulfillment_policy:
+          type: string
+          description: Controls how the system handles inventory availability.
+          enum:
+            - FILL_OR_KILL
+            - FILL_ALL
+            - FILL_ALL_AVAILABLE
+        fulfillment_action:
+          type: string
+          description: Result of applying the fulfillment policy.
+          enum:
+            - COMPLETE
+            - PARTIAL
+            - UNFULFILLABLE
+        unfulfillable_items:
+          type: array
+          description: List of items that cannot be fulfilled due to inventory constraints.
+          items:
+            $ref: '#/components/schemas/UnfulfillableItem'
+
+    UnfulfillableItem:
+      type: object
+      description: An item that cannot be fulfilled due to inventory constraints.
+      required:
+        - seller_sku
+        - seller_fulfillment_order_item_id
+        - requested_quantity
+        - available_quantity
+        - unfulfillable_quantity
+        - reason
+      properties:
+        seller_sku:
+          type: string
+          description: The seller's unique identifier for the item.
+        seller_fulfillment_order_item_id:
+          type: string
+          description: The seller's unique identifier for the line item.
+        requested_quantity:
+          type: integer
+          description: The quantity originally requested.
+        available_quantity:
+          type: integer
+          description: The quantity actually available in inventory.
+        unfulfillable_quantity:
+          type: integer
+          description: The shortage amount (requested - available).
+        reason:
+          type: string
+          description: The reason why the item cannot be fulfilled.
+          enum:
+            - INSUFFICIENT_STOCK
+            - SKU_NOT_FOUND
+            - INVENTORY_SERVICE_ERROR
+            - DISCONTINUED
+            - BACKORDERED
 
     OrderItem:
       type: object

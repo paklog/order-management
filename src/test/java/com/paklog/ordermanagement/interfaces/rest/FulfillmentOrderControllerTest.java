@@ -27,6 +27,7 @@ import com.paklog.ordermanagement.application.service.EventPublisherService;
 import com.paklog.ordermanagement.application.service.FulfillmentOrderService;
 import com.paklog.ordermanagement.domain.model.Address;
 import com.paklog.ordermanagement.domain.model.FulfillmentOrder;
+import com.paklog.ordermanagement.domain.model.FulfillmentPolicy;
 import com.paklog.ordermanagement.domain.model.OrderItem;
 import com.paklog.ordermanagement.domain.service.OrderValidationService;
 import com.paklog.ordermanagement.interfaces.dto.CancelFulfillmentOrderRequest;
@@ -63,6 +64,10 @@ class FulfillmentOrderControllerTest {
         // Mock validation service to return success by default
         when(orderValidationService.validate(any(FulfillmentOrder.class)))
             .thenReturn(OrderValidationService.ValidationResult.success());
+
+        // Mock inventory check to return all available by default
+        when(orderValidationService.checkInventoryAvailability(any(FulfillmentOrder.class)))
+            .thenReturn(OrderValidationService.InventoryAvailabilityResult.allAvailable());
     }
 
     @Test
@@ -159,6 +164,7 @@ class FulfillmentOrderControllerTest {
         request.setShippingSpeedCategory("STANDARD");
         request.setDestinationAddress(createTestAddress());
         request.setItems(createTestItems());
+        request.setFulfillmentPolicy(FulfillmentPolicy.FILL_ALL_AVAILABLE);
         return request;
     }
 
@@ -171,7 +177,9 @@ class FulfillmentOrderControllerTest {
                 "Test order",
                 "STANDARD",
                 createTestAddress(),
-                createTestItems()
+                createTestItems(),
+                null,
+                FulfillmentPolicy.FILL_ALL_AVAILABLE
         );
         order.receive();
         return order;

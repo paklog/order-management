@@ -22,8 +22,7 @@ order-management:
     max-items-per-order: 100
     min-order-value: 0.01
     max-order-value: 1000000.00
-    check-inventory-availability: false  # Set to true to enable inventory checks
-    check-product-catalog: false         # Set to true to enable product catalog validation
+    check-product-catalog: true
     reject-duplicate-skus: true
     enable-order-value-validation: false # Set to true to enable order value validation
     duplicate-detection-window-hours: 24 # Time window for fuzzy duplicate detection

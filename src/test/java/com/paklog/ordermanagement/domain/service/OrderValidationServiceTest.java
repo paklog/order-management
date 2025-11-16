@@ -29,7 +29,6 @@ class OrderValidationServiceTest {
         config.setMaxTotalQuantity(100000);
         config.setMaxItemsPerOrder(100);
         config.setRejectDuplicateSkus(true);
-        config.setCheckInventoryAvailability(false);
         config.setCheckProductCatalog(false);
         config.setEnableOrderValueValidation(false);
 

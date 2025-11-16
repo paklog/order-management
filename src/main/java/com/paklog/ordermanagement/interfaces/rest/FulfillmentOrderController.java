@@ -22,8 +22,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.paklog.ordermanagement.application.service.EventPublisherService;
 import com.paklog.ordermanagement.application.service.FulfillmentOrderService;
+import com.paklog.ordermanagement.domain.event.FulfillmentOrderPartiallyAcceptedEvent;
+import com.paklog.ordermanagement.domain.event.FulfillmentOrderStockUnavailableEvent;
 import com.paklog.ordermanagement.domain.event.FulfillmentOrderValidatedEvent;
 import com.paklog.ordermanagement.domain.model.FulfillmentOrder;
+import com.paklog.ordermanagement.domain.model.FulfillmentPolicy;
+import com.paklog.ordermanagement.domain.model.UnfulfillableItem;
 import com.paklog.ordermanagement.domain.service.OrderValidationService;
 import com.paklog.ordermanagement.interfaces.dto.CancelFulfillmentOrderRequest;
 import com.paklog.ordermanagement.interfaces.dto.CreateFulfillmentOrderRequest;
@@ -53,27 +57,43 @@ public class FulfillmentOrderController {
             @RequestHeader(value = "Idempotency-Key") @NotBlank(message = "Idempotency-Key header is required") String idempotencyKey,
             @Valid @RequestBody CreateFulfillmentOrderRequest request) {
         Instant startTime = Instant.now();
-        logger.info("Creating new fulfillment order - SellerOrderId: {}, ItemCount: {}",
+        logger.info("Creating new fulfillment order - SellerOrderId: {}, ItemCount: {}, Policy: {}",
                 request.getSellerFulfillmentOrderId(),
-                request.getItems() != null ? request.getItems().size() : 0);
+                request.getItems() != null ? request.getItems().size() : 0,
+                request.getFulfillmentPolicy());
 
         try {
             // Convert request to domain model
             FulfillmentOrder order = convertToDomain(request, idempotencyKey);
             logger.debug("Converted request to domain model - OrderId: {}", order.getOrderId());
 
-            // Validate and prepare order
+            // Validate basic business rules (not inventory)
             if (!validateOrder(order)) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            }
+
+            // Check inventory availability
+            OrderValidationService.InventoryAvailabilityResult inventoryResult =
+                orderValidationService.checkInventoryAvailability(order);
+
+            // Apply fulfillment policy
+            if (!applyFulfillmentPolicy(order, inventoryResult)) {
+                // FILL_OR_KILL policy and items unavailable
+                logger.warn("Order rejected due to FILL_OR_KILL policy - OrderId: {}, UnavailableItems: {}",
+                    order.getOrderId(), inventoryResult.getUnfulfillableItems().size());
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
             }
 
             // Publish validation success event
             publishValidationEvent(order);
 
+            // Publish inventory-related events based on order state
+            publishInventoryEvents(order);
+
             // Create and persist the order
             FulfillmentOrder createdOrder = fulfillmentOrderService.createOrder(order);
-            logger.info("Successfully created fulfillment order - OrderId: {}, Status: {}",
-                    createdOrder.getOrderId(), createdOrder.getStatus());
+            logger.info("Successfully created fulfillment order - OrderId: {}, Status: {}, FulfillmentAction: {}",
+                    createdOrder.getOrderId(), createdOrder.getStatus(), createdOrder.getFulfillmentAction());
 
             // Convert to DTO and return
             FulfillmentOrderDto dto = convertToDto(createdOrder);
@@ -104,6 +124,86 @@ public class FulfillmentOrderController {
             return false;
         }
         return true;
+    }
+
+    /**
+     * Applies the fulfillment policy based on inventory availability.
+     *
+     * @param order the order to process
+     * @param inventoryResult the inventory availability result
+     * @return true if order should be accepted, false if rejected
+     */
+    private boolean applyFulfillmentPolicy(FulfillmentOrder order,
+                                          OrderValidationService.InventoryAvailabilityResult inventoryResult) {
+        FulfillmentPolicy policy = order.getFulfillmentPolicy();
+
+        if (inventoryResult.isAllAvailable()) {
+            // All items available, no need to apply policy restrictions
+            logger.debug("All items available - OrderId: {}, Policy: {}", order.getOrderId(), policy);
+            return true;
+        }
+
+        // Items are unavailable, apply policy
+        for (UnfulfillableItem item : inventoryResult.getUnfulfillableItems()) {
+            order.addUnfulfillableItem(item);
+        }
+
+        switch (policy) {
+            case FILL_OR_KILL:
+                // Reject the entire order
+                logger.info("FILL_OR_KILL policy: Rejecting order due to unavailable items - OrderId: {}",
+                    order.getOrderId());
+                return false;
+
+            case FILL_ALL:
+                // Accept the order, will publish stock unavailable event
+                logger.info("FILL_ALL policy: Accepting order despite unavailable items - OrderId: {}, UnavailableCount: {}",
+                    order.getOrderId(), inventoryResult.getUnfulfillableItems().size());
+                return true;
+
+            case FILL_ALL_AVAILABLE:
+                // Accept the order with partial fulfillment
+                logger.info("FILL_ALL_AVAILABLE policy: Accepting order for partial fulfillment - OrderId: {}, UnavailableCount: {}",
+                    order.getOrderId(), inventoryResult.getUnfulfillableItems().size());
+                return true;
+
+            default:
+                logger.error("Unknown fulfillment policy - OrderId: {}, Policy: {}", order.getOrderId(), policy);
+                return false;
+        }
+    }
+
+    /**
+     * Publishes inventory-related events based on order state.
+     *
+     * @param order the order with inventory state
+     */
+    private void publishInventoryEvents(FulfillmentOrder order) {
+        if (!order.hasUnfulfillableItems()) {
+            return;
+        }
+
+        FulfillmentPolicy policy = order.getFulfillmentPolicy();
+
+        if (policy == FulfillmentPolicy.FILL_ALL_AVAILABLE && order.isPartiallyFulfillable()) {
+            // Publish partial fulfillment event
+            logger.debug("Publishing FulfillmentOrderPartiallyAcceptedEvent - OrderId: {}", order.getOrderId());
+            FulfillmentOrderPartiallyAcceptedEvent partialEvent =
+                new FulfillmentOrderPartiallyAcceptedEvent(order);
+            eventPublisherService.publishEvent(partialEvent);
+            logger.info("Partial fulfillment event published - OrderId: {}, UnfulfillableItems: {}",
+                order.getOrderId(), order.getUnfulfillableItems().size());
+        }
+
+        if (policy == FulfillmentPolicy.FILL_ALL || order.hasUnfulfillableItems()) {
+            // Publish stock unavailable event
+            logger.debug("Publishing FulfillmentOrderStockUnavailableEvent - OrderId: {}", order.getOrderId());
+            FulfillmentOrderStockUnavailableEvent stockEvent =
+                new FulfillmentOrderStockUnavailableEvent(order);
+            eventPublisherService.publishEvent(stockEvent);
+            logger.info("Stock unavailable event published - OrderId: {}, UnavailableItems: {}",
+                order.getOrderId(), order.getUnfulfillableItems().size());
+        }
     }
 
     /**
@@ -236,7 +336,8 @@ public class FulfillmentOrderController {
             request.getShippingSpeedCategory(),
             request.getDestinationAddress(),
             request.getItems(),
-            idempotencyKey
+            idempotencyKey,
+            request.getFulfillmentPolicy()
         );
     }
 
@@ -253,6 +354,9 @@ public class FulfillmentOrderController {
         dto.setItems(order.getItems());
         dto.setReceivedDate(order.getReceivedDate());
         dto.setCancellationReason(order.getCancellationReason());
+        dto.setFulfillmentPolicy(order.getFulfillmentPolicy());
+        dto.setFulfillmentAction(order.getFulfillmentAction());
+        // Note: unfulfillableItems are communicated asynchronously via domain events
         return dto;
     }
 }

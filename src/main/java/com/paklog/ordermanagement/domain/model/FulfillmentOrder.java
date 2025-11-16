@@ -1,6 +1,7 @@
 package com.paklog.ordermanagement.domain.model;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,9 +13,9 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 @Document(collection = "fulfillment_orders")
 public class FulfillmentOrder {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(FulfillmentOrder.class);
-    
+
     @Id
     private UUID orderId;
     private String sellerFulfillmentOrderId;
@@ -29,6 +30,9 @@ public class FulfillmentOrder {
     private String cancellationReason;
     @Indexed(unique = true, sparse = true)
     private String idempotencyKey;
+    private FulfillmentPolicy fulfillmentPolicy;
+    private FulfillmentAction fulfillmentAction;
+    private List<UnfulfillableItem> unfulfillableItems;
 
     public FulfillmentOrder() {
         // Default constructor for frameworks
@@ -37,7 +41,8 @@ public class FulfillmentOrder {
     public FulfillmentOrder(UUID orderId, String sellerFulfillmentOrderId, String displayableOrderId,
                             LocalDateTime displayableOrderDate, String displayableOrderComment,
                             String shippingSpeedCategory, Address destinationAddress,
-                            List<OrderItem> items, String idempotencyKey) {
+                            List<OrderItem> items, String idempotencyKey,
+                            FulfillmentPolicy fulfillmentPolicy) {
         this.orderId = orderId;
         this.sellerFulfillmentOrderId = sellerFulfillmentOrderId;
         this.displayableOrderId = displayableOrderId;
@@ -49,6 +54,18 @@ public class FulfillmentOrder {
         this.status = FulfillmentOrderStatus.NEW;
         this.receivedDate = LocalDateTime.now();
         this.idempotencyKey = idempotencyKey;
+        this.fulfillmentPolicy = fulfillmentPolicy;
+        this.fulfillmentAction = FulfillmentAction.COMPLETE; // Default to complete
+        this.unfulfillableItems = new ArrayList<>();
+    }
+
+    public FulfillmentOrder(UUID orderId, String sellerFulfillmentOrderId, String displayableOrderId,
+                            LocalDateTime displayableOrderDate, String displayableOrderComment,
+                            String shippingSpeedCategory, Address destinationAddress,
+                            List<OrderItem> items, String idempotencyKey) {
+        this(orderId, sellerFulfillmentOrderId, displayableOrderId, displayableOrderDate,
+            displayableOrderComment, shippingSpeedCategory, destinationAddress, items, idempotencyKey,
+            FulfillmentPolicy.FILL_OR_KILL); // Default policy for backward compatibility
     }
 
     public FulfillmentOrder(UUID orderId, String sellerFulfillmentOrderId, String displayableOrderId,
@@ -205,4 +222,82 @@ public class FulfillmentOrder {
     public void setIdempotencyKey(String idempotencyKey) {
         this.idempotencyKey = idempotencyKey;
     }
+
+    public FulfillmentPolicy getFulfillmentPolicy() {
+        return fulfillmentPolicy;
+    }
+
+    public void setFulfillmentPolicy(FulfillmentPolicy fulfillmentPolicy) {
+        this.fulfillmentPolicy = fulfillmentPolicy;
+    }
+
+    public FulfillmentAction getFulfillmentAction() {
+        return fulfillmentAction;
+    }
+
+    public void setFulfillmentAction(FulfillmentAction fulfillmentAction) {
+        this.fulfillmentAction = fulfillmentAction;
+    }
+
+    public List<UnfulfillableItem> getUnfulfillableItems() {
+        return unfulfillableItems;
+    }
+
+    public void setUnfulfillableItems(List<UnfulfillableItem> unfulfillableItems) {
+        this.unfulfillableItems = unfulfillableItems;
+    }
+
+    /**
+     * Adds an unfulfillable item to the order.
+     * This method also updates the fulfillment action based on the current state.
+     */
+    public void addUnfulfillableItem(UnfulfillableItem item) {
+        if (this.unfulfillableItems == null) {
+            this.unfulfillableItems = new ArrayList<>();
+        }
+        this.unfulfillableItems.add(item);
+        updateFulfillmentAction();
+    }
+
+    /**
+     * Updates the fulfillment action based on the current state of unfulfillable items.
+     */
+    private void updateFulfillmentAction() {
+        if (unfulfillableItems == null || unfulfillableItems.isEmpty()) {
+            this.fulfillmentAction = FulfillmentAction.COMPLETE;
+        } else if (unfulfillableItems.size() == items.size()) {
+            // Check if all items are completely unfulfillable
+            boolean allCompletelyUnfulfillable = unfulfillableItems.stream()
+                .allMatch(item -> item.getAvailableQuantity() == 0);
+            if (allCompletelyUnfulfillable) {
+                this.fulfillmentAction = FulfillmentAction.UNFULFILLABLE;
+            } else {
+                this.fulfillmentAction = FulfillmentAction.PARTIAL;
+            }
+        } else {
+            this.fulfillmentAction = FulfillmentAction.PARTIAL;
+        }
+    }
+
+    /**
+     * Checks if the order has any unfulfillable items.
+     */
+    public boolean hasUnfulfillableItems() {
+        return unfulfillableItems != null && !unfulfillableItems.isEmpty();
+    }
+
+    /**
+     * Checks if the order can be partially fulfilled.
+     */
+    public boolean isPartiallyFulfillable() {
+        return fulfillmentAction == FulfillmentAction.PARTIAL;
+    }
+
+    /**
+     * Checks if the order is completely unfulfillable.
+     */
+    public boolean isUnfulfillable() {
+        return fulfillmentAction == FulfillmentAction.UNFULFILLABLE;
+    }
 }
+

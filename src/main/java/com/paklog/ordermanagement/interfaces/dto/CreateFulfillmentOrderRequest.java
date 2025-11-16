@@ -10,9 +10,13 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Size;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.paklog.ordermanagement.domain.model.Address;
+import com.paklog.ordermanagement.domain.model.FulfillmentPolicy;
 import com.paklog.ordermanagement.domain.model.OrderItem;
 
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class CreateFulfillmentOrderRequest {
 
     @NotBlank(message = "Seller fulfillment order ID is required")
@@ -41,6 +45,9 @@ public class CreateFulfillmentOrderRequest {
     @Size(max = 100, message = "Maximum 100 items per order")
     @Valid
     private List<OrderItem> items;
+
+    @NotNull(message = "Fulfillment policy is required")
+    private FulfillmentPolicy fulfillmentPolicy;
 
     // Getters and setters
     public String getSellerFulfillmentOrderId() {
@@ -97,5 +104,13 @@ public class CreateFulfillmentOrderRequest {
 
     public void setItems(List<OrderItem> items) {
         this.items = items;
+    }
+
+    public FulfillmentPolicy getFulfillmentPolicy() {
+        return fulfillmentPolicy;
+    }
+
+    public void setFulfillmentPolicy(FulfillmentPolicy fulfillmentPolicy) {
+        this.fulfillmentPolicy = fulfillmentPolicy;
     }
 }

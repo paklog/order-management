@@ -18,6 +18,8 @@ import com.paklog.ordermanagement.domain.config.OrderValidationConfig;
 import com.paklog.ordermanagement.domain.model.FulfillmentOrder;
 import com.paklog.ordermanagement.domain.model.OrderItem;
 import com.paklog.ordermanagement.domain.model.ShippingSpeedCategory;
+import com.paklog.ordermanagement.domain.model.UnfulfillableItem;
+import com.paklog.ordermanagement.domain.model.UnfulfillableReason;
 import com.paklog.ordermanagement.domain.port.InventoryServicePort;
 import com.paklog.ordermanagement.domain.port.ProductCatalogServicePort;
 
@@ -41,8 +43,8 @@ public class OrderValidationService {
         this.config = config;
         this.inventoryService = inventoryService;
         this.productCatalogService = productCatalogService;
-        logger.info("OrderValidationService initialized - InventoryCheck: {}, ProductCatalogCheck: {}",
-            config.isCheckInventoryAvailability(), config.isCheckProductCatalog());
+        logger.info("OrderValidationService initialized - InventoryServiceAvailable: {}, ProductCatalogCheck: {}",
+            inventoryService != null, config.isCheckProductCatalog());
     }
 
     /**
@@ -72,10 +74,9 @@ public class OrderValidationService {
             validateProductCatalog(order, errors);
         }
 
-        // Validate inventory availability (if enabled)
-        if (config.isCheckInventoryAvailability() && inventoryService != null) {
-            validateInventoryAvailability(order, errors);
-        }
+        // Note: Inventory availability is no longer validated here.
+        // It's checked separately via checkInventoryAvailability() method
+        // and handled based on fulfillment policy.
 
         ValidationResult result = errors.isEmpty()
             ? ValidationResult.success()
@@ -226,39 +227,117 @@ public class OrderValidationService {
     }
 
     /**
-     * Validates inventory availability for all items.
+     * Checks inventory availability for all items in the order.
+     * Returns a list of unfulfillable items that can be used for policy decisions.
+     *
+     * @param order the order to check
+     * @return InventoryAvailabilityResult containing unfulfillable items
      */
-    private void validateInventoryAvailability(FulfillmentOrder order, List<String> errors) {
+    public InventoryAvailabilityResult checkInventoryAvailability(FulfillmentOrder order) {
+        if (inventoryService == null) {
+            logger.warn("Inventory service not available - OrderId: {}. Treating all items as available.",
+                order.getOrderId());
+            return InventoryAvailabilityResult.allAvailable();
+        }
+
         try {
             Map<String, Integer> itemsToCheck = new HashMap<>();
+            Map<String, OrderItem> itemsBySku = new HashMap<>();
+
             for (OrderItem item : order.getItems()) {
                 itemsToCheck.put(item.getSellerSku(), item.getQuantity());
+                itemsBySku.put(item.getSellerSku(), item);
             }
 
             InventoryServicePort.InventoryCheckResult result =
                 inventoryService.checkAvailability(itemsToCheck);
 
-            if (!result.isAllAvailable()) {
-                StringBuilder errorMsg = new StringBuilder("Insufficient inventory: ");
-                for (InventoryServicePort.UnavailableItem unavailable : result.getUnavailableItems()) {
-                    errorMsg.append(String.format("%s (requested: %d, available: %d, short: %d); ",
-                        unavailable.getSku(),
-                        unavailable.getRequested(),
-                        unavailable.getAvailable(),
-                        unavailable.getShortfall()));
-                }
-                errors.add(errorMsg.toString().trim());
-
-                logger.warn("Inventory availability check failed - OrderId: {}, UnavailableItems: {}",
-                    order.getOrderId(), result.getUnavailableItems().size());
-            } else {
-                logger.debug("Inventory availability check successful - OrderId: {}", order.getOrderId());
+            if (result.isAllAvailable()) {
+                logger.info("All items available in inventory - OrderId: {}", order.getOrderId());
+                return InventoryAvailabilityResult.allAvailable();
             }
+
+            // Convert to domain unfulfillable items
+            List<UnfulfillableItem> unfulfillableItems = new ArrayList<>();
+            for (InventoryServicePort.UnavailableItem unavailable : result.getUnavailableItems()) {
+                OrderItem originalItem = itemsBySku.get(unavailable.getSku());
+                UnfulfillableReason reason = unavailable.getAvailable() == 0
+                    ? UnfulfillableReason.SKU_NOT_FOUND
+                    : UnfulfillableReason.INSUFFICIENT_STOCK;
+
+                UnfulfillableItem unfulfillable = new UnfulfillableItem(
+                    unavailable.getSku(),
+                    originalItem != null ? originalItem.getSellerFulfillmentOrderItemId() : "unknown",
+                    unavailable.getRequested(),
+                    unavailable.getAvailable(),
+                    reason
+                );
+                unfulfillableItems.add(unfulfillable);
+            }
+
+            logger.info("Inventory check completed - OrderId: {}, UnavailableItems: {}",
+                order.getOrderId(), unfulfillableItems.size());
+
+            return InventoryAvailabilityResult.partiallyAvailable(unfulfillableItems);
 
         } catch (Exception e) {
             logger.error("Error checking inventory availability - OrderId: {}, Error: {}",
                 order.getOrderId(), e.getMessage(), e);
-            errors.add("Unable to check inventory availability: " + e.getMessage());
+            // In case of error, treat as all unavailable for safety
+            List<UnfulfillableItem> allUnavailable = new ArrayList<>();
+            for (OrderItem item : order.getItems()) {
+                allUnavailable.add(new UnfulfillableItem(
+                    item.getSellerSku(),
+                    item.getSellerFulfillmentOrderItemId(),
+                    item.getQuantity(),
+                    0,
+                    UnfulfillableReason.INVENTORY_SERVICE_ERROR
+                ));
+            }
+            return InventoryAvailabilityResult.serviceError(allUnavailable, e.getMessage());
+        }
+    }
+
+    /**
+     * Result of inventory availability check.
+     */
+    public static class InventoryAvailabilityResult {
+        private final boolean allAvailable;
+        private final List<UnfulfillableItem> unfulfillableItems;
+        private final String errorMessage;
+
+        private InventoryAvailabilityResult(boolean allAvailable, List<UnfulfillableItem> unfulfillableItems, String errorMessage) {
+            this.allAvailable = allAvailable;
+            this.unfulfillableItems = unfulfillableItems != null ? new ArrayList<>(unfulfillableItems) : new ArrayList<>();
+            this.errorMessage = errorMessage;
+        }
+
+        public static InventoryAvailabilityResult allAvailable() {
+            return new InventoryAvailabilityResult(true, new ArrayList<>(), null);
+        }
+
+        public static InventoryAvailabilityResult partiallyAvailable(List<UnfulfillableItem> unfulfillableItems) {
+            return new InventoryAvailabilityResult(false, unfulfillableItems, null);
+        }
+
+        public static InventoryAvailabilityResult serviceError(List<UnfulfillableItem> unfulfillableItems, String errorMessage) {
+            return new InventoryAvailabilityResult(false, unfulfillableItems, errorMessage);
+        }
+
+        public boolean isAllAvailable() {
+            return allAvailable;
+        }
+
+        public List<UnfulfillableItem> getUnfulfillableItems() {
+            return new ArrayList<>(unfulfillableItems);
+        }
+
+        public String getErrorMessage() {
+            return errorMessage;
+        }
+
+        public boolean hasServiceError() {
+            return errorMessage != null;
         }
     }
 

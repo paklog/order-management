@@ -96,6 +96,7 @@ components:
         - shipping_speed_category
         - destination_address
         - items
+        - fulfillment_policy
       properties:
         seller_fulfillment_order_id:
           type: string
@@ -136,6 +137,18 @@ components:
           maxItems: 100
           items:
             $ref: '#/components/schemas/OrderItem'
+        fulfillment_policy:
+          type: string
+          description: |
+            Controls how the system handles inventory availability:
+            - FILL_OR_KILL: Reject the entire order if any item is unavailable
+            - FILL_ALL: Accept the order even if items are unavailable (publishes stock unavailable event)
+            - FILL_ALL_AVAILABLE: Accept the order and fulfill only available items (partial fulfillment)
+          enum:
+            - FILL_OR_KILL
+            - FILL_ALL
+            - FILL_ALL_AVAILABLE
+          example: "FILL_ALL_AVAILABLE"
 
     FulfillmentOrder:
       type: object
@@ -168,6 +181,27 @@ components:
           type: string
           format: date-time
           description: The timestamp when the order was received by the system.
+        fulfillment_policy:
+          type: string
+          description: The fulfillment policy applied to this order.
+          enum:
+            - FILL_OR_KILL
+            - FILL_ALL
+            - FILL_ALL_AVAILABLE
+        fulfillment_action:
+          type: string
+          description: |
+            The result of applying the fulfillment policy:
+            - COMPLETE: All items can be fulfilled
+            - PARTIAL: Some items can be fulfilled (partial fulfillment)
+            - UNFULFILLABLE: No items can be fulfilled
+
+            Note: Detailed unfulfillable items information is provided asynchronously
+            via domain events (FulfillmentOrderPartiallyAcceptedEvent, FulfillmentOrderStockUnavailableEvent)
+          enum:
+            - COMPLETE
+            - PARTIAL
+            - UNFULFILLABLE
 
     OrderItem:
       type: object
@@ -249,6 +283,41 @@ components:
           maxLength: 2
           pattern: '^[A-Z]{2}$'
           example: "US"
+
+    UnfulfillableItem:
+      type: object
+      description: An item that cannot be fulfilled due to inventory constraints.
+      properties:
+        seller_sku:
+          type: string
+          description: The seller's unique identifier for the item.
+          example: "SKU-001"
+        seller_fulfillment_order_item_id:
+          type: string
+          description: The seller's unique identifier for the line item.
+          example: "line-item-1"
+        requested_quantity:
+          type: integer
+          description: The quantity originally requested.
+          example: 10
+        available_quantity:
+          type: integer
+          description: The quantity actually available in inventory.
+          example: 3
+        unfulfillable_quantity:
+          type: integer
+          description: The shortage amount (requested - available).
+          example: 7
+        reason:
+          type: string
+          description: The reason why the item cannot be fulfilled.
+          enum:
+            - INSUFFICIENT_STOCK
+            - SKU_NOT_FOUND
+            - INVENTORY_SERVICE_ERROR
+            - DISCONTINUED
+            - BACKORDERED
+          example: "INSUFFICIENT_STOCK"
 
     ValidationErrorResponse:
       type: object
