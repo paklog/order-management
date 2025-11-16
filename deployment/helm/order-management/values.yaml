@@ -54,6 +54,84 @@ ingress:
   - secretName: order-management-tls
     hosts:
     - order-management.paklog.local
+gatewayAPI:
+  enabled: true
+  # Gateway configuration (optional - use existing gateway or create new)
+  gateway:
+    create: false
+    name: paklog-gateway
+    namespace: paklog
+    gatewayClassName: istio
+    listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+    - name: https
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+        - name: paklog-gateway-tls
+          kind: Secret
+  # HTTPRoute configuration
+  httpRoute:
+    enabled: true
+    parentRefs:
+    - name: paklog-gateway
+      namespace: paklog
+      sectionName: https
+    hostnames:
+    - api.paklog.local
+    rules:
+    # Create Fulfillment Order - POST /fulfillment_orders
+    - matches:
+      - path:
+          type: Exact
+          value: /fulfillment/order_management/v1/fulfillment_orders
+        method: POST
+      backendRefs:
+      - name: '{{ include "order-management.fullname" . }}'
+        port: 8080
+      filters:
+      - type: RequestHeaderModifier
+        requestHeaderModifier:
+          add:
+          - name: X-Request-Source
+            value: gateway
+    # Get Fulfillment Order by ID - GET /fulfillment_orders/{order_id}
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /fulfillment/order_management/v1/fulfillment_orders/
+        method: GET
+      backendRefs:
+      - name: '{{ include "order-management.fullname" . }}'
+        port: 8080
+    # Cancel Fulfillment Order - POST /fulfillment_orders/{order_id}/cancel
+    - matches:
+      - path:
+          type: RegularExpression
+          value: /fulfillment/order_management/v1/fulfillment_orders/[^/]+/cancel
+        method: POST
+      backendRefs:
+      - name: '{{ include "order-management.fullname" . }}'
+        port: 8080
+    # Health check endpoints
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /actuator/health
+        method: GET
+      backendRefs:
+      - name: '{{ include "order-management.fullname" . }}'
+        port: 8081
+    timeouts:
+      request: 30s
+      backendRequest: 25s
+    retry:
+      attempts: 3
+      backoff: 100ms
 resources:
   limits:
     cpu: 1000m

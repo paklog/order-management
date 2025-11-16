@@ -1,22 +1,148 @@
-asyncapi: 2.5.0
+asyncapi: 2.6.0
 info:
-  title: Order Management Events (CloudEvents)
+  title: Order Management Domain Events
   version: 1.0.1
   description: |
-    This service publishes domain events related to the lifecycle of a fulfillment order.
-    All events conform to the CloudEvents v1.0 specification and are explicitly defined.
+    Event-driven API specification for the Order Management bounded context within the Paklog platform.
+
+    ## Overview
+    This service publishes domain events related to the complete lifecycle of fulfillment orders.
+    All events conform to the **CloudEvents v1.0 specification** and are published to Apache Kafka.
+
+    ## Architecture
+    The Order Management service follows Domain-Driven Design (DDD) principles and implements
+    an event-sourced architecture where all state changes are captured as immutable domain events.
+
+    ## Event Categories
+    Events are organized into the following categories:
+    - **Order Reception**: Events related to initial order intake
+    - **Order Validation**: Business rule validation results
+    - **Order Fulfillment**: Inventory availability and fulfillment decisions
+    - **Order Lifecycle**: State transitions and cancellations
+
+    ## CloudEvents Compliance
+    All events include standard CloudEvents attributes:
+    - `specversion`: Always "1.0"
+    - `id`: Unique event identifier (UUID)
+    - `type`: Event type in reverse domain notation
+    - `source`: Service identifier
+    - `time`: Event timestamp in ISO 8601 format
+    - `subject`: Aggregate root identifier (order_id)
+    - `datacontenttype`: Always "application/json"
+
+    ## Consumer Guidelines
+    - Events are guaranteed to be delivered at least once (at-least-once delivery)
+    - Consumers must be idempotent to handle duplicate events
+    - Event ordering is guaranteed within a partition (keyed by order_id)
+    - Events may arrive out of order across different orders
+
+    ## Related Resources
+    - [OpenAPI Specification](./openapi.yaml) - REST API documentation
+    - [Architecture Documentation](./docs/architecture.md) - System design details
+  contact:
+    name: Paklog Platform Team
+    email: platform@paklog.com
+    url: https://docs.paklog.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  x-logo:
+    url: https://paklog.com/logo.png
+    altText: Paklog Logo
+
+tags:
+  - name: Order Reception
+    description: |
+      Events related to the initial reception and acknowledgment of fulfillment orders.
+      These events are published immediately upon successful order creation.
+  - name: Order Validation
+    description: |
+      Events related to business rule validation of orders. Published after the order
+      passes or fails validation checks such as address verification, item availability,
+      and business constraints.
+  - name: Order Fulfillment
+    description: |
+      Events related to inventory availability and fulfillment decisions. These events
+      communicate the outcome of applying fulfillment policies (FILL_OR_KILL, FILL_ALL,
+      FILL_ALL_AVAILABLE) to orders.
+  - name: Order Lifecycle
+    description: |
+      Events related to order state transitions including cancellation, shipping,
+      and delivery updates. Track the complete journey of an order through the system.
+  - name: Inventory
+    description: |
+      Events containing information about stock availability, shortages, and inventory
+      constraints that affect order fulfillment.
 
 servers:
   production:
-    url: kafka-prod.example.com:9092
+    url: kafka.paklog.com:9092
     protocol: kafka
-    description: Production Kafka broker
+    protocolVersion: '3.0'
+    description: |
+      Production Kafka cluster with high availability and data replication.
+      - Replication factor: 3
+      - Min ISR: 2
+      - Retention: 7 days
+    bindings:
+      kafka:
+        schemaRegistryUrl: https://schema-registry.paklog.com
+        schemaRegistryVendor: confluent
+  staging:
+    url: kafka.staging.paklog.com:9092
+    protocol: kafka
+    protocolVersion: '3.0'
+    description: |
+      Staging environment for integration testing and pre-production validation.
+      - Replication factor: 2
+      - Retention: 3 days
+  development:
+    url: localhost:9092
+    protocol: kafka
+    protocolVersion: '3.0'
+    description: Local development Kafka instance for testing.
+
+defaultContentType: application/cloudevents+json
 
 channels:
   fulfillment.order_management.v1.events:
-    description: A topic for all domain events originating from the Order Management Bounded Context.
+    description: |
+      Primary event channel for all domain events originating from the Order Management bounded context.
+
+      ## Partitioning Strategy
+      Events are partitioned by `order_id` (CloudEvents `subject` attribute) to ensure:
+      - All events for a single order are processed in sequence
+      - Parallel processing across different orders
+      - Consistent event ordering per aggregate
+
+      ## Consumer Groups
+      - `warehouse-processor`: Warehouse management system for order fulfillment
+      - `notification-service`: Customer notification and alerting
+      - `analytics-pipeline`: Real-time analytics and reporting
+      - `audit-logger`: Compliance and audit trail
+
+      ## Message Format
+      All messages are CloudEvents v1.0 compliant with JSON encoding.
+    bindings:
+      kafka:
+        topic: fulfillment.order_management.v1.events
+        partitions: 12
+        replicas: 3
+        topicConfiguration:
+          cleanup.policy: ['delete']
+          retention.ms: 604800000
+          segment.bytes: 1073741824
     publish:
-      summary: Publish an order management domain event.
+      operationId: publishOrderManagementEvent
+      summary: Publish an order management domain event
+      description: |
+        Publishes domain events to notify downstream systems of order lifecycle changes.
+        Events are published atomically with database transactions using the Transactional Outbox pattern.
+      tags:
+        - name: Order Reception
+        - name: Order Validation
+        - name: Order Fulfillment
+        - name: Order Lifecycle
       message:
         oneOf:
           - $ref: '#/components/messages/FulfillmentOrderReceived'
@@ -32,84 +158,468 @@ components:
       name: fulfillment_order_received
       title: Fulfillment Order Received
       summary: Published when a new fulfillment order is successfully accepted by the system.
+      description: |
+        This event marks the beginning of the order lifecycle. It is published immediately
+        after the order passes initial validation and is persisted to the database.
+
+        ## Trigger Conditions
+        - Order creation request received via REST API
+        - Request passes schema validation
+        - No duplicate `seller_fulfillment_order_id` exists
+        - Idempotency check passes
+
+        ## Consumer Actions
+        - **Warehouse Service**: Begin inventory reservation process
+        - **Notification Service**: Send order confirmation to customer
+        - **Analytics**: Track order volume and patterns
+        - **Audit Log**: Record order creation event
+
+        ## Business Implications
+        - Order is now officially in the system
+        - SLA clock starts for fulfillment
+        - Inventory may be soft-reserved pending validation
+      tags:
+        - name: Order Reception
       contentType: application/cloudevents+json
+      traits:
+        - $ref: '#/components/messageTraits/cloudEventHeaders'
       payload:
         $ref: "#/components/schemas/FulfillmentOrderReceivedCloudEvent"
-        
+      examples:
+        - name: Standard Order Received
+          summary: A standard shipping order was received
+          payload:
+            specversion: "1.0"
+            type: "com.paklog.fulfillment.order.received"
+            source: "/fulfillment/order-management-service"
+            subject: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+            id: "550e8400-e29b-41d4-a716-446655440000"
+            time: "2024-01-15T10:30:45Z"
+            datacontenttype: "application/json"
+            data:
+              order:
+                order_id: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+                seller_fulfillment_order_id: "seller-abc-123"
+                displayable_order_id: "ORD-2024-001"
+                status: "RECEIVED"
+                fulfillment_policy: "FILL_OR_KILL"
+                fulfillment_action: "COMPLETE"
+
     FulfillmentOrderValidated:
       name: fulfillment_order_validated
       title: Fulfillment Order Validated
-      summary: Published when an order has passed all business rule validations and is ready for the warehouse.
+      summary: Published when an order passes all business rule validations and is ready for warehouse processing.
+      description: |
+        This event indicates that the order has been fully validated against all business rules
+        and is cleared for warehouse processing. The order is now ready to be picked and packed.
+
+        ## Validation Checks Performed
+        - Address validation and geocoding
+        - Item availability verification
+        - Shipping method compatibility
+        - Customer credit/account status
+        - Fraud detection scoring
+        - Regulatory compliance checks
+
+        ## Trigger Conditions
+        - All business rule validations pass
+        - Inventory is confirmed available (for FILL_OR_KILL)
+        - No fraud indicators detected
+        - Address is deliverable
+
+        ## Consumer Actions
+        - **Warehouse Service**: Create pick/pack work orders
+        - **Shipping Service**: Reserve carrier capacity
+        - **Inventory Service**: Hard-reserve inventory
+        - **Customer Service**: Update order status to "Processing"
+
+        ## State Transition
+        Order status changes from RECEIVED to PROCESSING
+      tags:
+        - name: Order Validation
       contentType: application/cloudevents+json
+      traits:
+        - $ref: '#/components/messageTraits/cloudEventHeaders'
       payload:
         $ref: "#/components/schemas/FulfillmentOrderValidatedCloudEvent"
+      examples:
+        - name: Order Validated Successfully
+          summary: Order passed all validation checks
+          payload:
+            specversion: "1.0"
+            type: "com.paklog.fulfillment.order.validated"
+            source: "/fulfillment/order-management-service"
+            subject: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+            id: "661f9511-f30c-5483-b827-557366551111"
+            time: "2024-01-15T10:31:00Z"
+            datacontenttype: "application/json"
+            data:
+              order:
+                order_id: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+                status: "PROCESSING"
+                fulfillment_action: "COMPLETE"
 
     FulfillmentOrderInvalidated:
       name: fulfillment_order_invalidated
       title: Fulfillment Order Invalidated
-      summary: Published when an order fails business rule validation.
+      summary: Published when an order fails business rule validation and cannot be processed.
+      description: |
+        This event indicates that the order has failed one or more critical business rule
+        validations and cannot proceed through the fulfillment pipeline. The order is marked
+        as INVALID and requires manual intervention or automatic refund processing.
+
+        ## Common Invalidation Reasons
+        - **Inventory Rejection**: FILL_OR_KILL policy with unavailable items
+        - **Address Issues**: Undeliverable or invalid shipping address
+        - **Fraud Detection**: Order flagged by fraud prevention system
+        - **Regulatory Compliance**: Items restricted in destination region
+        - **Account Issues**: Customer account suspended or payment failed
+
+        ## Trigger Conditions
+        - Critical business rule validation fails
+        - No automatic recovery path available
+        - Order cannot be fulfilled as requested
+
+        ## Consumer Actions
+        - **Customer Service**: Notify customer of rejection with reason
+        - **Payment Service**: Initiate refund if payment was captured
+        - **Analytics**: Track rejection patterns and reasons
+        - **Compliance**: Log rejection for regulatory reporting
+
+        ## State Transition
+        Order status changes to INVALID (terminal state)
+
+        ## Recovery Options
+        - Customer may submit a corrected order
+        - Manual override by customer service (with approval)
+        - Automatic retry if issue is transient (e.g., inventory)
+      tags:
+        - name: Order Validation
       contentType: application/cloudevents+json
+      traits:
+        - $ref: '#/components/messageTraits/cloudEventHeaders'
       payload:
         $ref: "#/components/schemas/FulfillmentOrderInvalidatedCloudEvent"
+      examples:
+        - name: Order Invalidated - Insufficient Stock
+          summary: FILL_OR_KILL order rejected due to stock shortage
+          payload:
+            specversion: "1.0"
+            type: "com.paklog.fulfillment.order.invalidated"
+            source: "/fulfillment/order-management-service"
+            subject: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+            id: "772ga622-g41d-6594-c938-668477662222"
+            time: "2024-01-15T10:31:15Z"
+            datacontenttype: "application/json"
+            data:
+              order_id: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+              seller_fulfillment_order_id: "seller-abc-123"
+              reason: "FILL_OR_KILL policy violation: Insufficient stock for SKU SKU-WIDGET-001 (requested: 10, available: 3)"
 
     FulfillmentOrderCancelled:
       name: fulfillment_order_cancelled
       title: Fulfillment Order Cancelled
-      summary: Published when an order has been successfully cancelled.
+      summary: Published when an order has been successfully cancelled before shipment.
+      description: |
+        This event is published when an order cancellation request is successfully processed.
+        The order must be in a cancellable state (not yet shipped) for this event to occur.
+
+        ## Cancellation Sources
+        - **Customer Request**: Customer initiated cancellation
+        - **Seller Request**: Seller cancelled the order
+        - **System Auto-Cancel**: Timeout or policy-based cancellation
+        - **Fraud Prevention**: Order cancelled due to fraud detection
+        - **Payment Failure**: Payment authorization failed or reversed
+
+        ## Trigger Conditions
+        - Cancel request received for valid order
+        - Order is in cancellable state (RECEIVED, PROCESSING, PLANNING)
+        - Cancellation approved (no warehouse operations in progress)
+
+        ## Consumer Actions
+        - **Inventory Service**: Release reserved inventory immediately
+        - **Payment Service**: Process refund to original payment method
+        - **Notification Service**: Send cancellation confirmation
+        - **Warehouse Service**: Abort any pending pick/pack operations
+        - **Analytics**: Track cancellation rates and reasons
+
+        ## State Transition
+        Order status changes to CANCELLED (terminal state)
+
+        ## Post-Cancellation
+        - Inventory is immediately available for other orders
+        - Customer receives cancellation confirmation email
+        - Refund processed within 3-5 business days
+        - Order history retained for audit purposes
+      tags:
+        - name: Order Lifecycle
       contentType: application/cloudevents+json
+      traits:
+        - $ref: '#/components/messageTraits/cloudEventHeaders'
       payload:
         $ref: "#/components/schemas/FulfillmentOrderCancelledCloudEvent"
+      examples:
+        - name: Customer Initiated Cancellation
+          summary: Order cancelled at customer request
+          payload:
+            specversion: "1.0"
+            type: "com.paklog.fulfillment.order.cancelled"
+            source: "/fulfillment/order-management-service"
+            subject: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+            id: "883hb733-h52e-7605-d049-779588773333"
+            time: "2024-01-15T11:00:00Z"
+            datacontenttype: "application/json"
+            data:
+              order_id: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+              seller_fulfillment_order_id: "seller-abc-123"
+              cancellation_reason: "Customer requested cancellation - found better price elsewhere"
 
     FulfillmentOrderPartiallyAccepted:
       name: fulfillment_order_partially_accepted
       title: Fulfillment Order Partially Accepted
       summary: Published when an order is accepted with partial fulfillment due to inventory constraints.
+      description: |
+        This event is published when an order with FILL_ALL_AVAILABLE policy encounters inventory
+        shortages and is accepted for partial fulfillment. Only items with available stock will
+        be fulfilled; unavailable items are removed from the order.
+
+        ## Partial Fulfillment Details
+        The event includes comprehensive information about:
+        - Items that will be fulfilled (available stock)
+        - Items that cannot be fulfilled (unavailable)
+        - Quantities requested vs. available
+        - Reasons for unavailability
+
+        ## Trigger Conditions
+        - Order uses FILL_ALL_AVAILABLE policy
+        - One or more items have insufficient stock
+        - At least one item can be fulfilled (otherwise UNFULFILLABLE)
+
+        ## Consumer Actions
+        - **Customer Service**: Notify customer of partial fulfillment
+        - **Payment Service**: Adjust payment amount for fulfilled items only
+        - **Warehouse Service**: Process only available items
+        - **Inventory Service**: Update reserved quantities
+        - **Analytics**: Track partial fulfillment rates and patterns
+        - **Procurement**: Flag items for restock priority
+
+        ## State Transition
+        - Order status: RECEIVED
+        - Fulfillment action: PARTIAL
+        - Items list: Contains only fulfillable items
+
+        ## Customer Communication
+        Customer should be notified with:
+        - List of items that will be fulfilled
+        - List of items that cannot be fulfilled
+        - Updated order total (if applicable)
+        - Options for unfulfilled items (wait, substitute, refund)
+
+        ## Business Metrics
+        - Partial fulfillment rate
+        - Average items per partial order
+        - Most commonly unavailable SKUs
+        - Revenue impact of partial fulfillment
+      tags:
+        - name: Order Fulfillment
+        - name: Inventory
       contentType: application/cloudevents+json
+      traits:
+        - $ref: '#/components/messageTraits/cloudEventHeaders'
       payload:
         $ref: "#/components/schemas/FulfillmentOrderPartiallyAcceptedCloudEvent"
+      examples:
+        - name: Partial Fulfillment - Stock Shortage
+          summary: Order accepted with 3 of 5 items fulfillable
+          payload:
+            specversion: "1.0"
+            type: "com.paklog.fulfillment.order.partially_accepted"
+            source: "/fulfillment/order-management-service"
+            subject: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            id: "994ic844-i63f-8716-e150-880699884444"
+            time: "2024-01-15T14:00:30Z"
+            datacontenttype: "application/json"
+            data:
+              order:
+                order_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                seller_fulfillment_order_id: "seller-xyz-789"
+                status: "RECEIVED"
+                fulfillment_policy: "FILL_ALL_AVAILABLE"
+                fulfillment_action: "PARTIAL"
+              unfulfillable_items:
+                - seller_sku: "SKU-GADGET-B"
+                  seller_fulfillment_order_item_id: "item-2"
+                  requested_quantity: 3
+                  available_quantity: 0
+                  unfulfillable_quantity: 3
+                  reason: "INSUFFICIENT_STOCK"
+                - seller_sku: "SKU-GADGET-C"
+                  seller_fulfillment_order_item_id: "item-3"
+                  requested_quantity: 2
+                  available_quantity: 1
+                  unfulfillable_quantity: 1
+                  reason: "INSUFFICIENT_STOCK"
+              total_items_requested: 5
+              items_fulfillable: 3
+              items_unfulfillable: 2
+              summary: "Order seller-xyz-789 partially accepted: 3 of 5 items can be fulfilled"
 
     FulfillmentOrderStockUnavailable:
       name: fulfillment_order_stock_unavailable
       title: Fulfillment Order Stock Unavailable
-      summary: Published when an order has stock unavailable for some or all items.
+      summary: Published when an order is accepted but has stock unavailable for some or all items.
+      description: |
+        This event is published for orders with FILL_ALL policy when inventory shortages are
+        detected. Unlike FILL_ALL_AVAILABLE (which removes unavailable items), FILL_ALL keeps
+        all items in the order and notifies downstream systems of the shortage for procurement
+        or backorder processing.
+
+        ## Stock Unavailability Details
+        The event provides comprehensive shortage information:
+        - Complete list of unavailable items
+        - Quantity shortfall per item
+        - Total shortage across the order
+        - Specific reasons for each unavailability
+
+        ## Trigger Conditions
+        - Order uses FILL_ALL policy
+        - One or more items have insufficient stock
+        - Order is accepted despite shortage (for backorder processing)
+
+        ## Consumer Actions
+        - **Procurement Service**: Initiate purchase orders for shortage items
+        - **Warehouse Service**: Mark items for backorder fulfillment
+        - **Customer Service**: Notify customer of expected delays
+        - **Supplier Management**: Escalate to suppliers for expedited delivery
+        - **Analytics**: Track stock-out patterns and demand forecasting
+        - **Inventory Planning**: Adjust safety stock levels
+
+        ## State Transition
+        - Order status: RECEIVED
+        - Fulfillment action: Based on actual availability
+        - All items retained in order (pending stock replenishment)
+
+        ## Backorder Workflow
+        1. Event triggers procurement process
+        2. Items marked as "awaiting stock"
+        3. Supplier orders placed automatically
+        4. Stock arrival triggers fulfillment completion
+        5. Customer notified of updated delivery date
+
+        ## Business Implications
+        - May delay order fulfillment
+        - Could impact customer satisfaction
+        - Triggers automatic reorder if below safety stock
+        - Affects inventory turnover metrics
+
+        ## Reasons for Unavailability
+        | Reason | Description | Recovery Action |
+        |--------|-------------|-----------------|
+        | INSUFFICIENT_STOCK | Not enough units | Wait for restock or procure |
+        | SKU_NOT_FOUND | Invalid product code | Catalog review needed |
+        | INVENTORY_SERVICE_ERROR | System failure | Retry after recovery |
+        | DISCONTINUED | Product end-of-life | Offer substitute |
+        | BACKORDERED | On order from supplier | Wait for delivery |
+      tags:
+        - name: Order Fulfillment
+        - name: Inventory
       contentType: application/cloudevents+json
+      traits:
+        - $ref: '#/components/messageTraits/cloudEventHeaders'
       payload:
         $ref: "#/components/schemas/FulfillmentOrderStockUnavailableCloudEvent"
+      examples:
+        - name: Stock Shortage Notification
+          summary: Order accepted with 2 of 5 items unavailable
+          payload:
+            specversion: "1.0"
+            type: "com.paklog.fulfillment.order.stock_unavailable"
+            source: "/fulfillment/order-management-service"
+            subject: "b2c3d4e5-f6g7-8901-bcde-fg2345678901"
+            id: "aa5jd955-j74g-9827-f261-991700995555"
+            time: "2024-01-15T15:30:00Z"
+            datacontenttype: "application/json"
+            data:
+              order:
+                order_id: "b2c3d4e5-f6g7-8901-bcde-fg2345678901"
+                seller_fulfillment_order_id: "seller-def-456"
+                status: "RECEIVED"
+                fulfillment_policy: "FILL_ALL"
+                fulfillment_action: "UNFULFILLABLE"
+              unavailable_items:
+                - seller_sku: "SKU-PREMIUM-A"
+                  seller_fulfillment_order_item_id: "line-1"
+                  requested_quantity: 10
+                  available_quantity: 3
+                  unfulfillable_quantity: 7
+                  reason: "INSUFFICIENT_STOCK"
+                - seller_sku: "SKU-PREMIUM-B"
+                  seller_fulfillment_order_item_id: "line-2"
+                  requested_quantity: 5
+                  available_quantity: 0
+                  unfulfillable_quantity: 5
+                  reason: "BACKORDERED"
+              total_items_requested: 5
+              items_unavailable: 2
+              total_quantity_shortfall: 12
+              summary: "Order seller-def-456 accepted with stock shortage: 2 of 5 items unavailable, total shortfall: 12 units"
 
   schemas:
     # --- Explicit CloudEvent Definitions ---
 
     FulfillmentOrderReceivedCloudEvent:
       type: object
+      description: |
+        CloudEvents-compliant envelope for the FulfillmentOrderReceived event.
+        Contains all standard CloudEvents attributes plus the order data payload.
       required: [specversion, type, source, id, time, data]
       properties:
         specversion:
           type: string
+          description: CloudEvents specification version. Always "1.0".
           enum: ["1.0"]
         type:
           type: string
+          description: Event type identifier in reverse domain notation.
           enum: ["com.paklog.fulfillment.order.received"]
         source:
           type: string
           format: uri-reference
+          description: |
+            URI reference identifying the context in which the event happened.
+            For this service, always "/fulfillment/order-management-service".
           example: "/fulfillment/order-management-service"
         subject:
           type: string
-          description: The `order_id` of the fulfillment order.
+          description: |
+            The subject of the event - the `order_id` of the fulfillment order.
+            Used for event routing and filtering.
+          format: uuid
+          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
         id:
           type: string
           format: uuid
+          description: |
+            Unique identifier for this specific event occurrence.
+            Used for idempotency and deduplication.
+          example: "550e8400-e29b-41d4-a716-446655440000"
         time:
           type: string
           format: date-time
+          description: |
+            Timestamp when the event occurred (UTC in ISO 8601 format).
+            Represents the actual time the order was received.
+          example: "2024-01-15T10:30:45Z"
         datacontenttype:
           type: string
+          description: Content type of the data payload.
           enum: ["application/json"]
         data:
           $ref: '#/components/schemas/FulfillmentOrderData'
 
     FulfillmentOrderValidatedCloudEvent:
       type: object
+      description: CloudEvents envelope for order validation success event.
       required: [specversion, type, source, id, time, data]
       properties:
         specversion:
@@ -124,6 +634,8 @@ components:
           example: "/fulfillment/order-management-service"
         subject:
           type: string
+          format: uuid
+          description: The order_id of the validated fulfillment order.
         id:
           type: string
           format: uuid
@@ -138,6 +650,7 @@ components:
 
     FulfillmentOrderInvalidatedCloudEvent:
       type: object
+      description: CloudEvents envelope for order validation failure event.
       required: [specversion, type, source, id, time, data]
       properties:
         specversion:
@@ -152,6 +665,8 @@ components:
           example: "/fulfillment/order-management-service"
         subject:
           type: string
+          format: uuid
+          description: The order_id of the invalidated fulfillment order.
         id:
           type: string
           format: uuid
@@ -166,6 +681,7 @@ components:
 
     FulfillmentOrderCancelledCloudEvent:
       type: object
+      description: CloudEvents envelope for order cancellation event.
       required: [specversion, type, source, id, time, data]
       properties:
         specversion:
@@ -180,6 +696,8 @@ components:
           example: "/fulfillment/order-management-service"
         subject:
           type: string
+          format: uuid
+          description: The order_id of the cancelled fulfillment order.
         id:
           type: string
           format: uuid
@@ -194,6 +712,9 @@ components:
 
     FulfillmentOrderPartiallyAcceptedCloudEvent:
       type: object
+      description: |
+        CloudEvents envelope for partial fulfillment event. Contains detailed
+        information about items that can and cannot be fulfilled.
       required: [specversion, type, source, id, time, data]
       properties:
         specversion:
@@ -208,7 +729,8 @@ components:
           example: "/fulfillment/order-management-service"
         subject:
           type: string
-          description: The order_id of the fulfillment order.
+          format: uuid
+          description: The order_id of the partially accepted fulfillment order.
         id:
           type: string
           format: uuid
@@ -223,6 +745,9 @@ components:
 
     FulfillmentOrderStockUnavailableCloudEvent:
       type: object
+      description: |
+        CloudEvents envelope for stock unavailability event. Provides comprehensive
+        information about inventory shortages for procurement and backorder processing.
       required: [specversion, type, source, id, time, data]
       properties:
         specversion:
@@ -237,7 +762,8 @@ components:
           example: "/fulfillment/order-management-service"
         subject:
           type: string
-          description: The order_id of the fulfillment order.
+          format: uuid
+          description: The order_id of the fulfillment order with stock issues.
         id:
           type: string
           format: uuid
@@ -254,122 +780,201 @@ components:
 
     FulfillmentOrderData:
       type: object
+      description: Standard payload containing the complete fulfillment order details.
+      required:
+        - order
       properties:
         order:
           $ref: '#/components/schemas/FulfillmentOrder'
 
     FulfillmentOrderInvalidatedData:
       type: object
+      description: |
+        Payload for order invalidation events. Contains the order identifiers
+        and the specific reason for rejection.
       required: [order_id, seller_fulfillment_order_id, reason]
       properties:
         order_id:
           type: string
           format: uuid
+          description: System-generated unique identifier for the order.
+          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
         seller_fulfillment_order_id:
           type: string
+          description: Seller-provided order identifier.
+          example: "seller-abc-123"
         reason:
           type: string
-          description: The reason why the order was invalidated.
-          example: "Insufficient stock for SKU item-xyz-789"
+          description: |
+            Detailed explanation of why the order was invalidated.
+            Should be human-readable and actionable.
+          example: "FILL_OR_KILL policy violation: Insufficient stock for SKU SKU-WIDGET-001 (requested: 10, available: 3)"
 
     FulfillmentOrderCancelledData:
       type: object
+      description: |
+        Payload for order cancellation events. Contains order identifiers
+        and optional cancellation reason.
       required: [order_id, seller_fulfillment_order_id]
       properties:
         order_id:
           type: string
           format: uuid
+          description: System-generated unique identifier for the order.
+          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
         seller_fulfillment_order_id:
           type: string
+          description: Seller-provided order identifier.
+          example: "seller-abc-123"
         cancellation_reason:
           type: string
-          example: "Cancelled at seller's request."
+          description: |
+            Human-readable explanation for the cancellation.
+            May be customer-provided or system-generated.
+          example: "Customer requested cancellation - found better price elsewhere"
 
     FulfillmentOrderPartiallyAcceptedData:
       type: object
+      description: |
+        Comprehensive payload for partial fulfillment events. Includes the modified order
+        (with only fulfillable items) and detailed information about unfulfillable items.
       required: [order, unfulfillable_items, total_items_requested, items_fulfillable, items_unfulfillable, summary]
       properties:
         order:
           $ref: '#/components/schemas/FulfillmentOrder'
+          description: The order with only fulfillable items remaining.
         unfulfillable_items:
           type: array
+          description: List of items that cannot be fulfilled with detailed reasons.
           items:
             $ref: '#/components/schemas/UnfulfillableItem'
         total_items_requested:
           type: integer
-          description: Total number of items requested in the order.
+          description: Total number of distinct items originally requested in the order.
+          example: 5
         items_fulfillable:
           type: integer
           description: Number of items that can be fulfilled.
+          example: 3
         items_unfulfillable:
           type: integer
           description: Number of items that cannot be fulfilled.
+          example: 2
         summary:
           type: string
-          description: Human-readable summary of the partial fulfillment.
-          example: "Order abc-123 partially accepted: 3 of 5 items can be fulfilled"
+          description: |
+            Human-readable summary of the partial fulfillment outcome.
+            Useful for notifications and reporting.
+          example: "Order seller-xyz-789 partially accepted: 3 of 5 items can be fulfilled"
 
     FulfillmentOrderStockUnavailableData:
       type: object
+      description: |
+        Comprehensive payload for stock unavailability events. Provides detailed
+        information for procurement and backorder processing workflows.
       required: [order, unavailable_items, total_items_requested, items_unavailable, total_quantity_shortfall, summary]
       properties:
         order:
           $ref: '#/components/schemas/FulfillmentOrder'
+          description: The complete order (all items retained for backorder processing).
         unavailable_items:
           type: array
+          description: List of items with insufficient stock.
           items:
             $ref: '#/components/schemas/UnfulfillableItem'
         total_items_requested:
           type: integer
-          description: Total number of items requested in the order.
+          description: Total number of distinct items requested in the order.
+          example: 5
         items_unavailable:
           type: integer
           description: Number of items with insufficient stock.
+          example: 2
         total_quantity_shortfall:
           type: integer
-          description: Total quantity shortage across all unavailable items.
+          description: |
+            Total quantity shortage across all unavailable items.
+            Useful for procurement planning and capacity assessment.
+          example: 12
         summary:
           type: string
           description: Human-readable summary of the stock shortage.
-          example: "Order abc-123 accepted with stock shortage: 2 of 5 items unavailable, total shortfall: 15 units"
+          example: "Order seller-def-456 accepted with stock shortage: 2 of 5 items unavailable, total shortfall: 12 units"
 
     # --- Reusable Domain Model Schemas ---
 
     FulfillmentOrder:
       type: object
+      description: |
+        Complete representation of a fulfillment order aggregate. Contains all
+        information necessary for order processing and tracking.
       properties:
         order_id:
           type: string
           format: uuid
+          description: System-generated unique identifier.
+          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
         seller_fulfillment_order_id:
           type: string
+          description: Seller-provided unique identifier.
+          example: "seller-abc-123"
         displayable_order_id:
           type: string
+          description: Customer-facing order number.
+          example: "ORD-2024-001"
         displayable_order_date:
           type: string
           format: date-time
+          description: Order date shown on packing slips.
+          example: "2024-01-15T10:30:00Z"
         displayable_order_comment:
           type: string
+          description: Comment displayed on packing slips.
+          example: "Thank you for your order!"
         shipping_speed_category:
           type: string
+          description: Selected shipping speed.
+          enum:
+            - STANDARD
+            - EXPEDITED
+            - PRIORITY
+            - SAME_DAY
+            - NEXT_DAY
+            - SCHEDULED
+          example: "STANDARD"
         destination_address:
           $ref: '#/components/schemas/Address'
         status:
           type: string
+          description: Current order processing status.
+          enum:
+            - RECEIVED
+            - PROCESSING
+            - PLANNING
+            - SHIPPED
+            - IN_TRANSIT
+            - DELIVERED
+            - CANCELLED
+            - INVALID
+          example: "RECEIVED"
         items:
           type: array
+          description: List of items in the order.
           items:
             $ref: '#/components/schemas/OrderItem'
         received_date:
           type: string
           format: date-time
+          description: Timestamp when order was received (UTC).
+          example: "2024-01-15T10:30:45Z"
         fulfillment_policy:
           type: string
-          description: Controls how the system handles inventory availability.
+          description: Policy controlling inventory availability handling.
           enum:
             - FILL_OR_KILL
             - FILL_ALL
             - FILL_ALL_AVAILABLE
+          example: "FILL_OR_KILL"
         fulfillment_action:
           type: string
           description: Result of applying the fulfillment policy.
@@ -377,15 +982,20 @@ components:
             - COMPLETE
             - PARTIAL
             - UNFULFILLABLE
+          example: "COMPLETE"
         unfulfillable_items:
           type: array
-          description: List of items that cannot be fulfilled due to inventory constraints.
+          description: |
+            List of items that cannot be fulfilled due to inventory constraints.
+            Only populated when fulfillment_action is PARTIAL or UNFULFILLABLE.
           items:
             $ref: '#/components/schemas/UnfulfillableItem'
 
     UnfulfillableItem:
       type: object
-      description: An item that cannot be fulfilled due to inventory constraints.
+      description: |
+        Detailed information about an item that cannot be fulfilled due to
+        inventory constraints. Provides actionable data for recovery workflows.
       required:
         - seller_sku
         - seller_fulfillment_order_item_id
@@ -396,31 +1006,38 @@ components:
       properties:
         seller_sku:
           type: string
-          description: The seller's unique identifier for the item.
+          description: Product SKU identifier.
+          example: "SKU-GADGET-B"
         seller_fulfillment_order_item_id:
           type: string
-          description: The seller's unique identifier for the line item.
+          description: Line item identifier.
+          example: "item-2"
         requested_quantity:
           type: integer
-          description: The quantity originally requested.
+          description: Quantity originally requested.
+          example: 10
         available_quantity:
           type: integer
-          description: The quantity actually available in inventory.
+          description: Quantity currently available in inventory.
+          example: 3
         unfulfillable_quantity:
           type: integer
-          description: The shortage amount (requested - available).
+          description: Shortage amount (requested - available).
+          example: 7
         reason:
           type: string
-          description: The reason why the item cannot be fulfilled.
+          description: Specific reason for unavailability.
           enum:
             - INSUFFICIENT_STOCK
             - SKU_NOT_FOUND
             - INVENTORY_SERVICE_ERROR
             - DISCONTINUED
             - BACKORDERED
+          example: "INSUFFICIENT_STOCK"
 
     OrderItem:
       type: object
+      description: Line item in a fulfillment order.
       required:
         - seller_sku
         - seller_fulfillment_order_item_id
@@ -428,19 +1045,33 @@ components:
       properties:
         seller_sku:
           type: string
+          description: Product SKU.
+          example: "SKU-WIDGET-001"
         seller_fulfillment_order_item_id:
           type: string
+          description: Line item identifier.
+          example: "line-1"
         quantity:
           type: integer
           format: int32
           minimum: 1
+          maximum: 10000
+          description: Quantity to fulfill.
+          example: 2
         gift_message:
           type: string
+          description: Optional gift message.
+          maxLength: 500
+          example: "Happy Birthday!"
         displayable_comment:
           type: string
+          description: Optional packing slip comment.
+          maxLength: 500
+          example: "Handle with care"
 
     Address:
       type: object
+      description: Shipping destination address.
       required:
         - name
         - address_line_1
@@ -451,15 +1082,65 @@ components:
       properties:
         name:
           type: string
+          description: Recipient name.
+          maxLength: 255
+          example: "John Doe"
         address_line_1:
           type: string
+          description: Primary street address.
+          maxLength: 255
+          example: "123 Main Street"
         address_line_2:
           type: string
+          description: Secondary address line (optional).
+          maxLength: 255
+          example: "Apt 4B"
         city:
           type: string
+          description: City name.
+          maxLength: 100
+          example: "New York"
         state_or_region:
           type: string
+          description: State or region.
+          maxLength: 100
+          example: "NY"
         postal_code:
           type: string
+          description: Postal/ZIP code.
+          maxLength: 20
+          pattern: '^[A-Za-z0-9\s-]+$'
+          example: "10001"
         country_code:
           type: string
+          description: ISO 3166-1 alpha-2 country code.
+          minLength: 2
+          maxLength: 2
+          pattern: '^[A-Z]{2}$'
+          example: "US"
+
+  messageTraits:
+    cloudEventHeaders:
+      headers:
+        type: object
+        description: Standard CloudEvents HTTP headers for Kafka.
+        properties:
+          ce_specversion:
+            type: string
+            description: CloudEvents version
+          ce_type:
+            type: string
+            description: Event type
+          ce_source:
+            type: string
+            description: Event source
+          ce_id:
+            type: string
+            description: Event ID
+          ce_time:
+            type: string
+            description: Event timestamp
+
+externalDocs:
+  description: Complete event-driven architecture documentation
+  url: https://docs.paklog.com/fulfillment/events

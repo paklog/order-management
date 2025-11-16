@@ -4,12 +4,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.paklog.ordermanagement.domain.model.Address;
 import com.paklog.ordermanagement.domain.model.FulfillmentAction;
 import com.paklog.ordermanagement.domain.model.FulfillmentOrderStatus;
 import com.paklog.ordermanagement.domain.model.FulfillmentPolicy;
 import com.paklog.ordermanagement.domain.model.OrderItem;
 
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class FulfillmentOrderDto {
     private UUID orderId;
     private String sellerFulfillmentOrderId;
