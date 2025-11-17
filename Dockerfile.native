@@ -1,0 +1,56 @@
+# ============================================
+# Multi-stage Dockerfile for Native Image Build
+# Uses GraalVM to create a native executable
+# ============================================
+
+# ============================================
+# Stage 1: Build Native Image
+# ============================================
+FROM ghcr.io/graalvm/graalvm-community:21 AS builder
+
+# Install necessary build tools
+RUN microdnf install -y maven findutils && microdnf clean all
+
+# Set working directory
+WORKDIR /build
+
+# Copy Maven files for dependency caching
+COPY pom.xml .
+
+# Download dependencies (cached layer)
+RUN mvn dependency:go-offline -B || true
+
+# Copy application source
+COPY src ./src
+
+# Build the native image
+# This step takes 5-15 minutes depending on hardware
+RUN mvn -Pnative clean native:compile -DskipTests -B
+
+# ============================================
+# Stage 2: Runtime Stage (Minimal)
+# ============================================
+FROM cgr.dev/chainguard/glibc-dynamic:latest
+
+# Metadata labels (OCI standard)
+LABEL org.opencontainers.image.title="Order Management Service (Native)" \
+      org.opencontainers.image.description="Native compiled fulfillment order lifecycle management service" \
+      org.opencontainers.image.vendor="Paklog" \
+      org.opencontainers.image.authors="Paklog Engineering Team" \
+      com.paklog.build.type="native"
+
+# Set working directory
+WORKDIR /app
+
+# Copy native executable from builder
+COPY --from=builder /build/target/order-management /app/order-management
+
+# Expose application port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+
+# Run the native executable directly
+ENTRYPOINT ["/app/order-management"]

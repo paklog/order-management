@@ -1,0 +1,22 @@
+{
+  "resources": {
+    "includes": [
+      {
+        "pattern": "\\Qapplication.yml\\E"
+      },
+      {
+        "pattern": "\\Qapplication-dev.yml\\E"
+      },
+      {
+        "pattern": "\\Qapplication-prod.yml\\E"
+      },
+      {
+        "pattern": "\\Qlogback-spring.xml\\E"
+      },
+      {
+        "pattern": "META-INF/.*"
+      }
+    ]
+  },
+  "bundles": []
+}
